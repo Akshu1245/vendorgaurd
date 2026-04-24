@@ -842,7 +842,7 @@ body.demo-active #app { height: calc(100vh - 28px); }
 /* ========== CONFIGURATION ========== */
 const API_URL = (() => {
   const params = new URLSearchParams(window.location.search);
-  return params.get('api') || localStorage.getItem('VG_API') || window.__VG_API_FALLBACK__ || 'http://127.0.0.1:8765';
+  return params.get('api') || localStorage.getItem('VG_API') || window.__VG_API_FALLBACK__ || 'https://vendorguard-api.onrender.com';
 })();
 
 let STATE = {
