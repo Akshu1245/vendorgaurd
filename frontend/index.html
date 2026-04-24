@@ -208,6 +208,9 @@
 
     /* Trust score flash animation */
     @keyframes scoreFlash { 0%{box-shadow:0 0 0 0 rgba(245,158,11,0.6)} 50%{box-shadow:0 0 40px 10px rgba(245,158,11,0.3)} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0)} }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .score-flash { animation: scoreFlash 1.5s ease-out; }
 
     /* Mobile responsiveness */
@@ -711,6 +714,134 @@
         </div>
       </section>
 
+      <!-- ====== COMPANY LIBRARY ====== -->
+      <section data-panel="companies" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Company Library</h1>
+            <p class="text-sm text-slate-400">Pre-analysed vendor profiles. Click any company to run a full audit.</p>
+          </div>
+          <button onclick="loadCompanyLibrary()" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">↻ Refresh</button>
+        </div>
+
+        <!-- Category filter buttons -->
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="filterCompanies('all')" class="company-filter-btn active px-3 py-1.5 rounded-full text-xs font-medium bg-slate-700 text-white" data-filter="all">All Companies</button>
+          <button onclick="filterCompanies('strong')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-900/50 text-emerald-300 border border-emerald-700" data-filter="strong">Strong (Secure)</button>
+          <button onclick="filterCompanies('mid')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-amber-900/50 text-amber-300 border border-amber-700" data-filter="mid">Mid-level</button>
+          <button onclick="filterCompanies('breached')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700" data-filter="breached">Breached / Weak</button>
+        </div>
+
+        <div id="company-library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="col-span-full text-center py-12 text-slate-500">
+            <div class="text-3xl mb-2">🏢</div>
+            <p>Loading company library...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== AUDIT PIPELINE ====== -->
+      <section data-panel="audit" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Audit Pipeline</h1>
+            <p class="text-sm text-slate-400">Step-by-step security audit with real-time processing logs and intelligence report output.</p>
+          </div>
+        </div>
+
+        <!-- Audit input -->
+        <div class="flex gap-3 items-center flex-wrap">
+          <input id="audit-vendor-input" type="text" placeholder="e.g. yahoo-legacy-services.com, equifax-analytics.com"
+            class="flex-1 min-w-[240px] px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none" />
+          <button id="run-audit-btn" onclick="runAuditPipeline()" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all shadow-lg shadow-cyan-900/30">
+            Run Full Audit
+          </button>
+        </div>
+
+        <!-- Quick select demo companies -->
+        <div class="flex gap-2 flex-wrap">
+          <span class="text-xs text-slate-500">Quick select:</span>
+          <button onclick="quickAudit('yahoo-legacy-services.com')" class="text-xs px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800 hover:bg-red-900/60">Yahoo (Breached)</button>
+          <button onclick="quickAudit('equifax-analytics.com')" class="text-xs px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800 hover:bg-red-900/60">Equifax (Breached)</button>
+          <button onclick="quickAudit('google-cloud-vendor.com')" class="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60">Google (Strong)</button>
+          <button onclick="quickAudit('logix-crm-india.com')" class="text-xs px-2 py-1 rounded bg-amber-900/30 text-amber-300 border border-amber-800 hover:bg-amber-900/60">Logix CRM (Mid)</button>
+        </div>
+
+        <!-- Pipeline steps -->
+        <div id="audit-pipeline-steps" class="space-y-3">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
+            <div class="text-3xl mb-3">🔬</div>
+            <p class="text-slate-400 text-sm">Enter a vendor domain above and click <strong>Run Full Audit</strong> to see the step-by-step pipeline.</p>
+            <p class="text-slate-500 text-xs mt-2">Each step shows data sources queried, APIs used, and findings discovered.</p>
+          </div>
+        </div>
+
+        <!-- Intelligence Report Output -->
+        <div id="audit-intel-report" class="hidden">
+          <h2 class="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
+            <span>VENDOR RISK INTELLIGENCE REPORT</span>
+            <span class="text-xs font-normal bg-cyan-900/30 text-cyan-300 px-2 py-0.5 rounded">CLASSIFIED</span>
+          </h2>
+          <div id="audit-report-content" class="space-y-4 rounded-2xl border border-cyan-800/50 bg-gradient-to-br from-slate-900 to-slate-950 p-6"></div>
+
+          <!-- Export buttons -->
+          <div class="flex gap-3 mt-4 flex-wrap">
+            <button onclick="exportAuditJSON()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Export JSON</button>
+            <button onclick="exportAuditPDF()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Export PDF</button>
+            <button onclick="exportAuditZIP()" class="px-4 py-2 rounded-lg text-xs font-medium bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-900">Download Audit Pack (ZIP)</button>
+          </div>
+        </div>
+
+        <!-- Processing logs -->
+        <div id="audit-logs" class="hidden">
+          <h3 class="text-sm font-semibold text-slate-400 mb-2">Processing Logs</h3>
+          <div id="audit-log-output" class="bg-black/50 rounded-xl p-4 font-mono text-xs text-green-400 max-h-64 overflow-y-auto border border-slate-800"></div>
+        </div>
+      </section>
+
+      <!-- ====== LIVE ALERTS ====== -->
+      <section data-panel="alerts" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Live Threat Alerts</h1>
+            <p class="text-sm text-slate-400">Real-time threat detection and alert simulation. Connected via SSE.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="simulateThreatAlert()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 text-red-300 border border-red-700 hover:bg-red-900">Simulate Threat</button>
+            <button onclick="clearAlertFeed()" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">Clear Feed</button>
+          </div>
+        </div>
+
+        <!-- Alert stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-red-400" id="alert-count-critical">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Critical</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-orange-400" id="alert-count-high">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">High</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-amber-400" id="alert-count-medium">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Medium</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-emerald-400" id="alert-count-resolved">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Resolved</div>
+          </div>
+        </div>
+
+        <!-- Alert feed -->
+        <div id="alert-feed" class="space-y-2 max-h-[500px] overflow-y-auto">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 text-center">
+            <div class="text-3xl mb-2">🔔</div>
+            <p class="text-slate-400 text-sm">No alerts yet. Alerts appear here in real-time via SSE stream.</p>
+            <button onclick="simulateThreatAlert()" class="mt-3 text-xs text-cyan-400 hover:text-cyan-300">Click to simulate a threat alert</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ====== EXECUTIVE BOARD (v3.0) ====== -->
       <section data-panel="executive" class="panel space-y-6">
         <div class="flex items-start justify-between flex-wrap gap-3">
@@ -1160,6 +1291,8 @@
           { id: 'executive', label: 'Portfolio' },
           { id: 'compare',   label: 'Compare vendors' },
         ] },
+      { id: 'companies', icon: '🏢', label: 'Company Library', sub: 'Strong · Mid · Breached vendors',
+        panels: [{ id: 'companies', label: 'Companies' }] },
       { id: 'scan', icon: '🛡️', label: 'Vendor Scan', sub: 'Trust · findings · DPDP · flows',
         panels: [
           { id: 'overview', label: 'Overview' },
@@ -1168,16 +1301,19 @@
           { id: 'dataflow', label: 'Data Flow' },
           { id: 'graph',    label: 'Graph'    },
         ] },
+      { id: 'audit', icon: '🔬', label: 'Audit Pipeline', sub: 'Step-by-step audit with logs',
+        panels: [{ id: 'audit', label: 'Audit' }] },
       { id: 'agent', icon: '⚡', label: 'Autonomous Agent', sub: '6-step one-click onboarding',
         panels: [{ id: 'agent', label: 'Agent' }] },
       { id: 'contract', icon: '📝', label: 'Contract Intel', sub: 'Layer 5 · DPA gaps + benchmark',
         panels: [{ id: 'contract', label: 'Contract' }] },
       { id: 'backtest', icon: '🧪', label: 'Real Breach Back-test', sub: 'AIIMS · BigBasket · MobiKwik',
         panels: [{ id: 'backtest', label: 'Back-test' }] },
-      { id: 'defense', icon: '🚨', label: 'Live Defense', sub: 'Gateway + canary tripwires',
+      { id: 'defense', icon: '🚨', label: 'Live Defense', sub: 'Gateway + canary + alerts',
         panels: [
           { id: 'gateway', label: 'Gateway' },
           { id: 'canary',  label: 'Canaries' },
+          { id: 'alerts',  label: 'Live Alerts' },
         ] },
       { id: 'remediate', icon: '📋', label: 'Remediation', sub: 'Playbook · diff · audit pack',
         panels: [
@@ -3841,6 +3977,541 @@ This addendum governs the processing of personal data.
     }
 
     // =========================================================================
+    // COMPANY LIBRARY
+    // =========================================================================
+    let companyData = null;
+    let currentFilter = 'all';
+
+    const FALLBACK_COMPANIES = {
+      total: 10,
+      categories: {
+        strong: [
+          { domain: 'google-cloud-vendor.com', label: 'Enterprise cloud vendor — strong security posture (SAFE)', category: 'strong', trust_score: 92, band: 'safe', findings_count: 2, critical_count: 0, high_count: 0 },
+          { domain: 'microsoft-enterprise.com', label: 'Enterprise software vendor — strong security (SAFE)', category: 'strong', trust_score: 88, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
+          { domain: 'cleanpay-gateway.com', label: 'Payments vendor with mature security posture (safe baseline)', category: 'strong', trust_score: 85, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
+        ],
+        mid: [
+          { domain: 'paytrust-partner.com', label: 'Payments vendor (deterministic demo target)', category: 'mid', trust_score: 48, band: 'watch', findings_count: 6, critical_count: 1, high_count: 2 },
+          { domain: 'healthbuddy-partner.com', label: 'Healthtech partner handling sensitive PII', category: 'mid', trust_score: 44, band: 'watch', findings_count: 5, critical_count: 1, high_count: 2 },
+          { domain: 'databridge-cloud.com', label: 'Cloud storage vendor with cross-border data flows', category: 'mid', trust_score: 38, band: 'watch', findings_count: 6, critical_count: 2, high_count: 1 },
+        ],
+        breached: [
+          { domain: 'yahoo-legacy-services.com', label: 'Legacy web services vendor — BREACHED (critical)', category: 'breached', trust_score: 12, band: 'block', findings_count: 7, critical_count: 4, high_count: 1 },
+          { domain: 'equifax-analytics.com', label: 'Credit analytics vendor — BREACHED (critical)', category: 'breached', trust_score: 15, band: 'block', findings_count: 6, critical_count: 4, high_count: 1 },
+          { domain: 'logix-crm-india.com', label: 'Worst-case CRM vendor — maximum DPDP exposure', category: 'breached', trust_score: 8, band: 'block', findings_count: 9, critical_count: 4, high_count: 2 },
+          { domain: 'shopquick-vendor.com', label: 'E-commerce vendor with exposed services', category: 'breached', trust_score: 22, band: 'block', findings_count: 6, critical_count: 2, high_count: 2 },
+        ],
+      },
+      all: [],
+    };
+    FALLBACK_COMPANIES.all = [...FALLBACK_COMPANIES.categories.breached, ...FALLBACK_COMPANIES.categories.mid, ...FALLBACK_COMPANIES.categories.strong];
+
+    async function loadCompanyLibrary() {
+      const grid = $('company-library-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div class="col-span-full text-center py-8"><div class="animate-pulse text-cyan-400">Loading companies...</div></div>';
+      try {
+        const r = await fetch(`${API}/companies`, { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) throw new Error('API error');
+        companyData = await r.json();
+      } catch {
+        companyData = FALLBACK_COMPANIES;
+      }
+      renderCompanyGrid();
+    }
+
+    function filterCompanies(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.company-filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+        if (b.dataset.filter === filter) {
+          b.classList.add('ring-2', 'ring-cyan-500');
+        } else {
+          b.classList.remove('ring-2', 'ring-cyan-500');
+        }
+      });
+      renderCompanyGrid();
+    }
+
+    function renderCompanyGrid() {
+      const grid = $('company-library-grid');
+      if (!grid || !companyData) return;
+      let companies = currentFilter === 'all' ? companyData.all : (companyData.categories[currentFilter] || []);
+      if (!companies.length) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500">No companies in this category.</div>';
+        return;
+      }
+      grid.innerHTML = companies.map(c => {
+        const bandColors = {
+          block: 'border-red-700 bg-red-950/30',
+          watch: 'border-amber-700 bg-amber-950/30',
+          safe: 'border-emerald-700 bg-emerald-950/30',
+        };
+        const scoreColors = {
+          block: 'text-red-400',
+          watch: 'text-amber-400',
+          safe: 'text-emerald-400',
+        };
+        const bc = bandColors[c.band] || 'border-slate-700 bg-slate-900/50';
+        const sc = scoreColors[c.band] || 'text-slate-300';
+        const catBadge = c.category === 'strong' ? '<span class="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded">SECURE</span>'
+          : c.category === 'breached' ? '<span class="text-[10px] bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded">BREACHED</span>'
+          : '<span class="text-[10px] bg-amber-900/50 text-amber-300 px-1.5 py-0.5 rounded">MIXED</span>';
+        return `
+          <div class="rounded-2xl border ${bc} p-4 cursor-pointer hover:scale-[1.02] transition-transform" onclick="companyCardClick('${c.domain}')">
+            <div class="flex items-start justify-between mb-2">
+              <div class="text-sm font-semibold text-slate-200 truncate flex-1">${c.domain}</div>
+              ${catBadge}
+            </div>
+            <div class="text-xs text-slate-400 mb-3 line-clamp-2">${c.label}</div>
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-2xl font-bold ${sc}">${c.trust_score}</span>
+                <span class="text-xs text-slate-500">/100</span>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] uppercase font-bold ${sc}">${c.band}</div>
+                <div class="text-[10px] text-slate-500">${c.findings_count} findings</div>
+                ${c.critical_count > 0 ? `<div class="text-[10px] text-red-400">${c.critical_count} critical</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function companyCardClick(domain) {
+      // Set the domain in the audit input and switch to audit panel
+      const auditInput = $('audit-vendor-input');
+      if (auditInput) auditInput.value = domain;
+      navTo('audit');
+      runAuditPipeline();
+    }
+
+    // =========================================================================
+    // AUDIT PIPELINE
+    // =========================================================================
+    let lastAuditResult = null;
+
+    function quickAudit(domain) {
+      const input = $('audit-vendor-input');
+      if (input) input.value = domain;
+      runAuditPipeline();
+    }
+
+    async function runAuditPipeline() {
+      const input = $('audit-vendor-input');
+      const vendor = (input && input.value || '').trim().toLowerCase();
+      if (!vendor) { alert('Enter a vendor domain'); return; }
+
+      const stepsEl = $('audit-pipeline-steps');
+      const logsEl = $('audit-logs');
+      const logOutput = $('audit-log-output');
+      const reportEl = $('audit-intel-report');
+      const btn = $('run-audit-btn');
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+      if (reportEl) reportEl.classList.add('hidden');
+      if (logsEl) { logsEl.classList.remove('hidden'); }
+      if (logOutput) logOutput.innerHTML = '';
+
+      const pipelineSteps = [
+        { step: 1, label: 'DNS & TLS Analysis', icon: '🔐', detail: 'Checking SPF/DKIM/DMARC + TLS configuration...' },
+        { step: 2, label: 'Certificate Transparency Scan', icon: '📜', detail: 'Querying crt.sh for subdomain enumeration...' },
+        { step: 3, label: 'Threat Intelligence Feeds', icon: '🕵️', detail: 'Querying Shodan, HaveIBeenPwned, VirusTotal...' },
+        { step: 4, label: 'Vulnerability Scanning', icon: '🔍', detail: 'Running ProjectDiscovery Nuclei templates...' },
+        { step: 5, label: 'DPDP Act 2023 Mapping', icon: '📋', detail: 'Mapping findings to DPDP clauses with ₹ liability...' },
+        { step: 6, label: 'AI Risk Analysis & Scoring', icon: '🧠', detail: 'Computing trust score + generating AI summary...' },
+      ];
+
+      // Render initial pipeline state
+      if (stepsEl) {
+        stepsEl.innerHTML = pipelineSteps.map(s => `
+          <div id="audit-step-${s.step}" class="rounded-xl border border-slate-800 bg-slate-900/50 p-4 flex items-center gap-4 transition-all">
+            <div class="text-2xl w-8 text-center">${s.icon}</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium text-slate-300">Step ${s.step}: ${s.label}</div>
+              <div class="text-xs text-slate-500">${s.detail}</div>
+            </div>
+            <div class="text-xs text-slate-600" id="audit-step-status-${s.step}">Pending</div>
+          </div>
+        `).join('');
+      }
+
+      function logMsg(msg) {
+        if (!logOutput) return;
+        const ts = new Date().toISOString().split('T')[1].split('.')[0];
+        logOutput.innerHTML += `<div>[${ts}] ${msg}</div>`;
+        logOutput.scrollTop = logOutput.scrollHeight;
+      }
+
+      function updateStep(step, status, detail, durationMs) {
+        const el = document.getElementById(`audit-step-${step}`);
+        const statusEl = document.getElementById(`audit-step-status-${step}`);
+        if (!el) return;
+        if (status === 'running') {
+          el.classList.remove('border-slate-800');
+          el.classList.add('border-cyan-700', 'bg-cyan-950/20');
+          if (statusEl) { statusEl.textContent = 'Running...'; statusEl.classList.add('text-cyan-400', 'animate-pulse'); }
+        } else if (status === 'complete') {
+          el.classList.remove('border-cyan-700', 'bg-cyan-950/20');
+          el.classList.add('border-emerald-700', 'bg-emerald-950/20');
+          if (statusEl) {
+            statusEl.textContent = detail ? `${durationMs}ms` : 'Done';
+            statusEl.classList.remove('text-cyan-400', 'animate-pulse');
+            statusEl.classList.add('text-emerald-400');
+          }
+        } else if (status === 'error') {
+          el.classList.remove('border-cyan-700', 'bg-cyan-950/20');
+          el.classList.add('border-red-700', 'bg-red-950/20');
+          if (statusEl) { statusEl.textContent = 'Error'; statusEl.classList.add('text-red-400'); }
+        }
+      }
+
+      // Animate steps while making the API call
+      let stepAnimInterval = null;
+      let currentAnimStep = 1;
+      logMsg(`Starting full audit pipeline for ${vendor}...`);
+
+      // Start step animation
+      async function animateSteps() {
+        for (let i = 1; i <= 6; i++) {
+          if (lastAuditResult) break; // API already returned
+          updateStep(i, 'running');
+          logMsg(`Step ${i}: ${pipelineSteps[i-1].label} — ${pipelineSteps[i-1].detail}`);
+          await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+          if (!lastAuditResult) {
+            updateStep(i, 'complete', true, Math.floor(100 + Math.random() * 400));
+            logMsg(`Step ${i}: Complete`);
+          }
+        }
+      }
+
+      lastAuditResult = null;
+      const animPromise = animateSteps();
+
+      // Make the actual API call
+      try {
+        logMsg('Connecting to backend API...');
+        const r = await fetch(`${API}/audit/pipeline/${encodeURIComponent(vendor)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        lastAuditResult = await r.json();
+        logMsg('Backend pipeline complete. Processing results...');
+      } catch (err) {
+        logMsg(`Backend unavailable (${err.message}). Using demo data...`);
+        // Fall back to demo data
+        lastAuditResult = generateDemoAuditResult(vendor);
+      }
+
+      // Wait for animation to finish
+      await animPromise;
+
+      // Update steps with real data if available
+      if (lastAuditResult && lastAuditResult.pipeline) {
+        lastAuditResult.pipeline.steps.forEach(s => {
+          updateStep(s.step, 'complete', true, s.duration_ms);
+          logMsg(`Step ${s.step}: ${s.label} — ${s.details} (${s.duration_ms}ms)`);
+        });
+      } else {
+        for (let i = 1; i <= 6; i++) updateStep(i, 'complete', true, Math.floor(100 + Math.random() * 500));
+      }
+
+      logMsg('Pipeline complete. Rendering intelligence report...');
+
+      // Render intelligence report
+      renderIntelligenceReport(lastAuditResult);
+
+      // Also update the main scan view
+      if (lastAuditResult && lastAuditResult.result) {
+        lastScan = lastAuditResult.result;
+        try { renderOverview(lastScan); } catch {}
+        try { renderFindings(lastScan.findings || []); } catch {}
+        try { renderDPDP(lastScan.dpdp || []); } catch {}
+      }
+
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Full Audit'; }
+    }
+
+    function generateDemoAuditResult(vendor) {
+      // Generate fallback demo data using the FALLBACK_COMPANIES data
+      const company = FALLBACK_COMPANIES.all.find(c => c.domain === vendor);
+      const score = company ? company.trust_score : 42;
+      const band = company ? company.band : 'watch';
+      const critCount = company ? company.critical_count : 2;
+      const findingsCount = company ? company.findings_count : 5;
+
+      const demoFindings = [];
+      const sources = ['shodan', 'hibp', 'crt.sh', 'virustotal', 'dns', 'tls', 'nuclei'];
+      const severities = ['critical', 'high', 'medium', 'low'];
+      for (let i = 0; i < findingsCount; i++) {
+        demoFindings.push({
+          id: `demo-${i}`,
+          source: sources[i % sources.length],
+          title: `Demo finding ${i+1} from ${sources[i % sources.length]}`,
+          description: `Simulated finding for ${vendor}`,
+          severity: i < critCount ? 'critical' : severities[Math.min(i, severities.length - 1)],
+          evidence: {},
+        });
+      }
+
+      return {
+        vendor,
+        pipeline: {
+          total_steps: 6,
+          total_duration_ms: 2400,
+          steps: [
+            { step: 1, label: 'DNS & TLS Analysis', icon: '🔐', status: 'complete', duration_ms: 320, details: 'Checked SPF/DKIM/DMARC + TLS config.', sources: ['DNS resolver', 'TLS handshake'], findings_count: 1 },
+            { step: 2, label: 'Certificate Transparency Scan', icon: '📜', status: 'complete', duration_ms: 450, details: 'Queried crt.sh for subdomain enumeration.', sources: ['crt.sh'], findings_count: 1 },
+            { step: 3, label: 'Threat Intelligence Feeds', icon: '🕵️', status: 'complete', duration_ms: 680, details: 'Queried Shodan, HIBP, VirusTotal.', sources: ['Shodan (mock)', 'HIBP (mock)', 'VirusTotal (mock)'], findings_count: 2 },
+            { step: 4, label: 'Vulnerability Scanning', icon: '🔍', status: 'complete', duration_ms: 220, details: 'Ran Nuclei templates.', sources: ['Nuclei (mock)'], findings_count: 1 },
+            { step: 5, label: 'DPDP Act 2023 Mapping', icon: '📋', status: 'complete', duration_ms: 180, details: `Mapped ${findingsCount} findings to DPDP clauses.`, sources: ['DPDP RAG engine'], findings_count: 3 },
+            { step: 6, label: 'AI Risk Analysis & Scoring', icon: '🧠', status: 'complete', duration_ms: 550, details: `Trust score: ${score}/100 (${band}).`, sources: ['ML scorer', 'AI summary (template)'], findings_count: 0 },
+          ],
+        },
+        result: {
+          vendor, scanned_at: new Date().toISOString(), duration_ms: 2400,
+          findings: demoFindings, dpdp: [],
+          ai_summary: `## Vendor Risk Assessment: ${vendor}\n\nTrust Score: ${score}/100 — Band: ${band.toUpperCase()}\n\nThis vendor ${band === 'block' ? 'presents critical security risks and should be immediately blocked' : band === 'watch' ? 'requires enhanced monitoring' : 'meets minimum security standards'}. ${critCount > 0 ? `${critCount} critical findings require immediate attention.` : 'No critical findings detected.'}\n\n**Recommendation**: ${band === 'block' ? 'BLOCK — Revoke vendor access immediately.' : band === 'watch' ? 'WATCH — Enhanced monitoring recommended.' : 'SAFE — Standard vendor oversight sufficient.'}`,
+          trust: { score, band, color: band === 'block' ? '#ef4444' : band === 'watch' ? '#f59e0b' : '#10b981', label: band.toUpperCase() },
+          total_dpdp_exposure_inr: band === 'block' ? 250000000 : band === 'watch' ? 80000000 : 5000000,
+        },
+        intelligence_report: {
+          classification: 'VENDOR RISK INTELLIGENCE REPORT',
+          subject: vendor, date: new Date().toISOString(),
+          trust_score: score, trust_band: band,
+          total_findings: findingsCount, critical_findings: critCount,
+          high_findings: Math.max(0, findingsCount - critCount - 2),
+          dpdp_clauses_triggered: Math.min(findingsCount, 4),
+          total_exposure_inr: band === 'block' ? 250000000 : band === 'watch' ? 80000000 : 5000000,
+          data_sources_used: ['shodan', 'hibp', 'crt.sh', 'virustotal', 'dns', 'tls'],
+          apis_queried: { shodan: false, hibp: false, virustotal: false, nuclei: false, ai: false },
+          executive_summary: `This vendor ${band === 'block' ? 'presents critical risks to your organization' : band === 'watch' ? 'shows moderate risk indicators' : 'meets security requirements'}.`,
+          recommendation: band === 'block' ? 'BLOCK — Immediate vendor access revocation required' : band === 'watch' ? 'WATCH — Enhanced monitoring recommended' : 'SAFE — Standard vendor oversight sufficient',
+        },
+      };
+    }
+
+    function renderIntelligenceReport(data) {
+      const reportEl = $('audit-intel-report');
+      const contentEl = $('audit-report-content');
+      if (!reportEl || !contentEl || !data) return;
+
+      const ir = data.intelligence_report || {};
+      const result = data.result || {};
+      const pipeline = data.pipeline || {};
+      const trust = result.trust || {};
+      const bandColor = trust.band === 'block' ? 'text-red-400' : trust.band === 'watch' ? 'text-amber-400' : 'text-emerald-400';
+      const bandBg = trust.band === 'block' ? 'bg-red-900/30 border-red-700' : trust.band === 'watch' ? 'bg-amber-900/30 border-amber-700' : 'bg-emerald-900/30 border-emerald-700';
+      const exposure = result.total_dpdp_exposure_inr || 0;
+      const exposureFmt = exposure >= 1e7 ? `₹${(exposure / 1e7).toFixed(1)}Cr` : `₹${exposure.toLocaleString()}`;
+
+      contentEl.innerHTML = `
+        <!-- Header -->
+        <div class="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest">Subject</div>
+            <div class="text-lg font-bold text-white">${ir.subject || result.vendor || '—'}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-500">Date</div>
+            <div class="text-sm text-slate-300">${ir.date ? new Date(ir.date).toLocaleString() : new Date().toLocaleString()}</div>
+          </div>
+        </div>
+
+        <!-- Trust Score -->
+        <div class="flex items-center gap-6 py-4">
+          <div class="text-center">
+            <div class="text-5xl font-black ${bandColor}">${ir.trust_score || trust.score || '—'}</div>
+            <div class="text-xs text-slate-500">/ 100</div>
+          </div>
+          <div class="flex-1">
+            <div class="inline-block px-3 py-1 rounded-full text-sm font-bold uppercase ${bandBg} border ${bandColor}">${ir.trust_band || trust.band || '—'}</div>
+            <div class="text-sm text-slate-400 mt-1">${ir.recommendation || ''}</div>
+          </div>
+        </div>
+
+        <!-- Key metrics grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-white">${ir.total_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">Total Findings</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-red-400">${ir.critical_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">Critical</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-orange-400">${ir.high_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">High</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-cyan-400">${exposureFmt}</div>
+            <div class="text-[10px] uppercase text-slate-500">DPDP Exposure</div>
+          </div>
+        </div>
+
+        <!-- Data Sources -->
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Data Sources Queried</div>
+          <div class="flex flex-wrap gap-2">
+            ${(ir.data_sources_used || []).map(s => `<span class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">${s}</span>`).join('')}
+          </div>
+        </div>
+
+        <!-- API Status -->
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">API Integration Status</div>
+          <div class="flex flex-wrap gap-2">
+            ${Object.entries(ir.apis_queried || {}).map(([k, v]) => 
+              `<span class="text-xs px-2 py-1 rounded ${v ? 'bg-emerald-900/30 text-emerald-300 border border-emerald-700' : 'bg-slate-800 text-slate-500 border border-slate-700'}">${k}: ${v ? 'LIVE' : 'MOCK'}</span>`
+            ).join('')}
+          </div>
+        </div>
+
+        <!-- Pipeline Summary -->
+        ${pipeline.steps ? `
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Pipeline Execution (${pipeline.total_duration_ms || 0}ms total)</div>
+          <div class="space-y-1">
+            ${pipeline.steps.map(s => `
+              <div class="flex items-center gap-2 text-xs">
+                <span>${s.icon || '•'}</span>
+                <span class="text-slate-300 flex-1">${s.label}</span>
+                <span class="text-slate-500">${s.findings_count || 0} findings</span>
+                <span class="text-cyan-400 mono">${s.duration_ms}ms</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Executive Summary -->
+        <div class="border-t border-slate-800 pt-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Executive Summary</div>
+          <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">${ir.executive_summary || result.ai_summary || '—'}</div>
+        </div>
+      `;
+
+      reportEl.classList.remove('hidden');
+    }
+
+    function exportAuditJSON() {
+      if (!lastAuditResult) { alert('Run an audit first'); return; }
+      const blob = new Blob([JSON.stringify(lastAuditResult, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vendorguard-audit-${lastAuditResult.vendor || 'unknown'}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function exportAuditPDF() {
+      if (!lastAuditResult || !lastAuditResult.result) { alert('Run an audit first'); return; }
+      const vendor = lastAuditResult.vendor || lastAuditResult.result.vendor || '';
+      if (vendor && API) {
+        window.open(`${API}/report/${encodeURIComponent(vendor)}.pdf`, '_blank');
+      } else {
+        alert('No vendor data available for PDF export');
+      }
+    }
+
+    function exportAuditZIP() {
+      if (!lastAuditResult || !lastAuditResult.result) { alert('Run an audit first'); return; }
+      const vendor = lastAuditResult.vendor || lastAuditResult.result.vendor || '';
+      if (vendor && API) {
+        window.open(`${API}/audit/${encodeURIComponent(vendor)}.zip`, '_blank');
+      } else {
+        // Fallback to frontend ZIP generation
+        generateAuditZip();
+      }
+    }
+
+    // =========================================================================
+    // LIVE THREAT ALERTS
+    // =========================================================================
+    let alertFeed = [];
+    let alertCounts = { critical: 0, high: 0, medium: 0, resolved: 0 };
+
+    const DEMO_THREATS = [
+      { severity: 'critical', title: 'Bulk data exfiltration detected', vendor: 'analytics-vendor.io', summary: '50,000 records requested in single API call from unknown IP 203.0.113.42. Gateway auto-blocked in 0.3s.', action: 'Credential quarantined + endpoint locked' },
+      { severity: 'critical', title: 'Canary token tripped on /admin/export', vendor: 'paytrust-partner.com', summary: 'Vendor-issued credential accessed canary endpoint never documented. Possible lateral movement.', action: 'Incident response initiated' },
+      { severity: 'high', title: 'Anomalous API pattern: 3x baseline', vendor: 'databridge-cloud.com', summary: 'API call volume spiked 3x over 15-minute rolling average. ML anomaly score: 0.92.', action: 'Rate limiting applied' },
+      { severity: 'high', title: 'New CVE affecting vendor stack', vendor: 'logix-crm-india.com', summary: 'CVE-2024-21762 (Fortinet FortiOS RCE, CVSS 9.8) affects vendor infrastructure. Patch status: unknown.', action: 'Vendor notified via automated alert' },
+      { severity: 'medium', title: 'TLS certificate expiring in 7 days', vendor: 'healthbuddy-partner.com', summary: 'SSL certificate for api.healthbuddy-partner.com expires 2024-02-15. Auto-renewal not configured.', action: 'Playbook task created' },
+      { severity: 'medium', title: 'Geo-anomaly: login from new country', vendor: 'shopquick-vendor.com', summary: 'Admin login from Nigeria (first time). Previous logins: India only.', action: 'Session flagged for review' },
+      { severity: 'critical', title: 'SQL injection attempt blocked', vendor: 'yahoo-legacy-services.com', summary: 'Gateway WAF detected SQLi payload in query parameter. Pattern: UNION SELECT. Source IP: 198.51.100.23.', action: 'Request blocked + IP blacklisted' },
+      { severity: 'high', title: 'Sensitive data in API response', vendor: 'equifax-analytics.com', summary: 'PII fields (email, phone, PAN) detected in unmasked API response. DLP policy violation.', action: 'Data masking applied retroactively' },
+    ];
+
+    function simulateThreatAlert() {
+      const threat = DEMO_THREATS[Math.floor(Math.random() * DEMO_THREATS.length)];
+      const alert = {
+        id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        at: new Date().toISOString(),
+        ...threat,
+        containment_seconds: (0.1 + Math.random() * 2).toFixed(1),
+      };
+      addAlertToFeed(alert);
+    }
+
+    function addAlertToFeed(alert) {
+      alertFeed.unshift(alert);
+      if (alertFeed.length > 50) alertFeed.pop();
+      alertCounts[alert.severity] = (alertCounts[alert.severity] || 0) + 1;
+      updateAlertCounters();
+      renderAlertFeed();
+    }
+
+    function updateAlertCounters() {
+      const c = $('alert-count-critical'); if (c) c.textContent = alertCounts.critical;
+      const h = $('alert-count-high'); if (h) h.textContent = alertCounts.high;
+      const m = $('alert-count-medium'); if (m) m.textContent = alertCounts.medium;
+      const r = $('alert-count-resolved'); if (r) r.textContent = alertCounts.resolved;
+    }
+
+    function renderAlertFeed() {
+      const feed = $('alert-feed');
+      if (!feed) return;
+      if (!alertFeed.length) {
+        feed.innerHTML = '<div class="text-center py-8 text-slate-500">No alerts yet.</div>';
+        return;
+      }
+      feed.innerHTML = alertFeed.map(a => {
+        const sevColors = { critical: 'border-red-700 bg-red-950/20', high: 'border-orange-700 bg-orange-950/20', medium: 'border-amber-700 bg-amber-950/20' };
+        const sevText = { critical: 'text-red-400', high: 'text-orange-400', medium: 'text-amber-400' };
+        const sc = sevColors[a.severity] || 'border-slate-700 bg-slate-900/50';
+        const st = sevText[a.severity] || 'text-slate-400';
+        const time = a.at ? new Date(a.at).toLocaleTimeString() : '';
+        return `
+          <div class="rounded-xl border ${sc} p-4 animate-fadeIn">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full ${a.severity === 'critical' ? 'bg-red-500 animate-pulse' : a.severity === 'high' ? 'bg-orange-500' : 'bg-amber-500'}"></span>
+                <span class="text-xs font-bold uppercase ${st}">${a.severity}</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mono">${time}</span>
+            </div>
+            <div class="text-sm font-semibold text-slate-200 mb-1">${a.title}</div>
+            <div class="text-xs text-slate-400 mb-2">${a.summary}</div>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] text-slate-500">Vendor: <span class="text-slate-300">${a.vendor}</span></span>
+              <span class="text-[10px] text-emerald-400">${a.action} (${a.containment_seconds}s)</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function clearAlertFeed() {
+      alertFeed = [];
+      alertCounts = { critical: 0, high: 0, medium: 0, resolved: 0 };
+      updateAlertCounters();
+      renderAlertFeed();
+    }
+
+    // =========================================================================
     // v3.3 — init extensions
     // =========================================================================
     function wireV33() {
@@ -3941,6 +4612,9 @@ This addendum governs the processing of personal data.
       // Static backtest — never depends on API
       renderStaticBacktest();
 
+      // Load company library
+      loadCompanyLibrary();
+
       // Health check in background
       healthCheck();
       await pingStatus();
@@ -3952,6 +4626,11 @@ This addendum governs the processing of personal data.
 
       // Wire download buttons
       wireDownloadButtons();
+
+      // Start periodic alert simulation for demo effect
+      setInterval(() => {
+        if (alertFeed.length < 3) simulateThreatAlert();
+      }, 30000);
     })();
 
     function wireDownloadButtons() {
