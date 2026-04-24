@@ -159,7 +159,7 @@ def companies_library() -> dict:
         raw_findings = info.get("findings", [])
         findings = [Finding(**{k: v for k, v in f.items() if k != "tag"}) for f in raw_findings]
         score_obj = compute_score(findings)
-        category = info.get("category", "mid")
+        category = info.get("category")
         if category not in ("strong", "breached", "mid"):
             if score_obj.score >= 80:
                 category = "strong"
