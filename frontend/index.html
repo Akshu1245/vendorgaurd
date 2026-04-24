@@ -1446,8 +1446,8 @@
         `${r.vendor} · ${r.findings.length} findings · ${new Set(r.findings.map(f=>f.source)).size} sources · ${r.duration_ms}ms · ${r.scanned_at}`;
 
       // Badge in sidebar
-      $('badge-findings').textContent = r.findings.length ? `${r.findings.length}` : '';
-      $('badge-dpdp').textContent = r.dpdp.length ? `${r.dpdp.length}` : '';
+      const bf = $('badge-scan');
+      if (bf) bf.textContent = r.findings.length ? `${r.findings.length} findings` : '';
 
       // Gateway vendor badge
       $('gw-vendor-badge').textContent = r.vendor;
