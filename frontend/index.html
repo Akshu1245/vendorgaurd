@@ -1453,17 +1453,23 @@
       $('gw-vendor-badge').textContent = r.vendor;
 
       // Report panel
-      $('report-empty').classList.add('hidden');
-      $('report-card').classList.remove('hidden');
-      $('report-vendor').textContent = r.vendor;
-      $('report-dl').href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
+      const repEmpty = $('report-empty');
+      const repCard = $('report-card');
+      if (repEmpty) repEmpty.classList.add('hidden');
+      if (repCard) repCard.classList.remove('hidden');
+      const repVendor = $('report-vendor');
+      if (repVendor) repVendor.textContent = r.vendor;
+      const repDl = $('report-dl');
+      if (repDl) repDl.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
       const auditBtn = $('audit-dl');
       if (auditBtn) auditBtn.href = `${API}/audit/${encodeURIComponent(r.vendor)}.zip`;
 
       // DPDP pdf link
       const pdfBtn = $('dpdp-pdf');
-      pdfBtn.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
-      pdfBtn.classList.remove('pointer-events-none', 'opacity-40');
+      if (pdfBtn) {
+        pdfBtn.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
+        pdfBtn.classList.remove('pointer-events-none', 'opacity-40');
+      }
     }
 
     // --- findings ---
