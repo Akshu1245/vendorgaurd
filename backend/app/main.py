@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, Response
 from sse_starlette.sse import EventSourceResponse
@@ -22,9 +22,11 @@ from sse_starlette.sse import EventSourceResponse
 from app import __version__
 from app.config import settings
 from app.modules import (
+    agent,
     ai_risk,
     alerts,
     anomaly,
+    backtest,
     canary,
     compliance_diff,
     contract,
@@ -33,11 +35,13 @@ from app.modules import (
     framework,
     gateway,
     incident,
+    metrics,
     osint,
     playbook,
     portfolio,
     rag,
     report,
+    signed_url,
     store,
     trust_score,
 )
@@ -123,12 +127,72 @@ def root() -> dict:
             },
         },
         "demo_mode": settings.demo_mode,
+        "backtests": {
+            "endpoint": "/backtest",
+            "cases": len(backtest.list_cases()["cases"]),
+            "note": "Reconstruction of AIIMS 2022 / BigBasket 2020 / MobiKwik 2021 showing what VendorGuard would have flagged at onboarding.",
+        },
+        "agent": {
+            "endpoint": "/agent/onboard",
+            "steps": [s[0] for s in agent.STEPS],
+            "stream_channel": "agent",
+        },
     }
 
 
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "version": __version__}
+
+
+# ------------------------------------------------------------------ backtests
+@app.get("/backtest")
+def backtest_list() -> dict:
+    """List real-world Indian vendor-mediated breaches we have reconstructed."""
+    return backtest.list_cases()
+
+
+@app.get("/backtest/{case_id}")
+def backtest_detail(case_id: str) -> dict:
+    result = backtest.run(case_id)
+    if not result:
+        raise HTTPException(404, f"Unknown backtest case '{case_id}'.")
+    metrics.inc("vendorguard_backtests_run_total", case=case_id)
+    return result
+
+
+# ------------------------------------------------------------------ agent (autonomous onboarding)
+@app.post("/agent/onboard")
+async def agent_onboard(payload: dict) -> dict:
+    """Run the 6-step autonomous vendor-onboarding agent.
+
+    Body: `{"vendor": "example.com", "contract_text": "...", "polish_rewrites": false}`.
+    Also publishes per-step progress to the `agent` SSE channel.
+    """
+    vendor = (payload.get("vendor") or "").strip().lower()
+    if not vendor:
+        raise HTTPException(400, "Missing 'vendor'.")
+    contract_text = payload.get("contract_text") or None
+    polish = bool(payload.get("polish_rewrites", False))
+    metrics.inc("vendorguard_agent_runs_total")
+    return await agent.run(vendor, contract_text=contract_text, polish_rewrites=polish)
+
+
+# ------------------------------------------------------------------ Prometheus /metrics
+@app.get("/metrics")
+async def prometheus_metrics() -> PlainTextResponse:
+    vendors = await store.list_vendors()
+    recent_alerts = await store.recent_alerts(500)
+    extra = {
+        "vendorguard_vendors_tracked": float(len(vendors)),
+        "vendorguard_alerts_total": float(len(recent_alerts)),
+        "vendorguard_total_exposure_inr": float(sum(int(v.get("exposure_inr") or 0) for v in vendors)),
+        "vendorguard_dpdp_rag_passages": float(rag.retriever().stats().get("passages", 0)),
+    }
+    return PlainTextResponse(
+        content=metrics.snapshot(extra_gauges=extra),
+        media_type="text/plain; version=0.0.4",
+    )
 
 
 # ------------------------------------------------------------------ scan
@@ -158,6 +222,8 @@ async def scan(payload: dict) -> ScanResponse:
     )
     await store.save_scan(vendor, resp.model_dump())
     events.publish("scans", {"vendor": vendor, "trust": score.model_dump(), "exposure_inr": exposure})
+    metrics.inc("vendorguard_scans_total", band=score.band)
+    metrics.inc("vendorguard_findings_total", band=score.band, value=len(findings))
     return resp
 
 
@@ -433,6 +499,7 @@ async def alerts_stream(request: Request):
     q_alerts = events.subscribe("alerts")
     q_scans = events.subscribe("scans")
     q_traffic = events.subscribe("gateway.traffic")
+    q_agent = events.subscribe("agent")
 
     async def event_gen():
         try:
@@ -446,6 +513,7 @@ async def alerts_stream(request: Request):
                         asyncio.create_task(q_alerts.get()),
                         asyncio.create_task(q_scans.get()),
                         asyncio.create_task(q_traffic.get()),
+                        asyncio.create_task(q_agent.get()),
                     },
                     timeout=15,
                     return_when=asyncio.FIRST_COMPLETED,
@@ -464,6 +532,7 @@ async def alerts_stream(request: Request):
             events.unsubscribe("alerts", q_alerts)
             events.unsubscribe("scans", q_scans)
             events.unsubscribe("gateway.traffic", q_traffic)
+            events.unsubscribe("agent", q_agent)
 
     return EventSourceResponse(event_gen())
 
@@ -583,12 +652,66 @@ async def contract_analyze(req: ContractAnalyzeRequest) -> dict:
     This is Layer 5 (Contract Intelligence) from the deck, now live.
     """
     result = contract.analyze(req.contract_text or "")
+    metrics.inc("vendorguard_contract_analyses_total")
     if req.polish_rewrites and settings.has_ai:
         for g in result["gaps"]:
             g["recommended_rewrite"] = await contract.polish_rewrite(
                 g["label"], g["recommended_rewrite"]
             )
     return result
+
+
+@app.post("/contract/analyze/upload")
+async def contract_analyze_upload(
+    file: UploadFile = File(...),
+    polish_rewrites: bool = Form(False),
+) -> dict:
+    """Upload a PDF or plain-text DPA directly — no copy-paste needed.
+
+    Extracts text via `pypdf` (already a project dependency) for .pdf uploads;
+    plain-text .txt / .md files are read as-is. Returns the same schema as
+    `/contract/analyze` plus metadata about the uploaded file.
+    """
+    filename = (file.filename or "upload.txt").lower()
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty upload.")
+    text = ""
+    source_kind = "text"
+    if filename.endswith(".pdf") or raw[:4] == b"%PDF":
+        try:
+            from pypdf import PdfReader
+            import io as _io
+
+            reader = PdfReader(_io.BytesIO(raw))
+            text = "\n\n".join((p.extract_text() or "") for p in reader.pages)
+            source_kind = "pdf"
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"Failed to parse PDF: {e!r}")
+    else:
+        try:
+            text = raw.decode("utf-8", errors="replace")
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(400, f"Failed to decode text: {e!r}")
+
+    if not text.strip():
+        raise HTTPException(400, "Upload produced no extractable text.")
+
+    result = contract.analyze(text)
+    metrics.inc("vendorguard_contract_uploads_total", kind=source_kind)
+    if polish_rewrites and settings.has_ai:
+        for g in result["gaps"]:
+            g["recommended_rewrite"] = await contract.polish_rewrite(
+                g["label"], g["recommended_rewrite"]
+            )
+    return {
+        "filename": file.filename,
+        "source_kind": source_kind,
+        "char_count": len(text),
+        "word_count": len(text.split()),
+        "text": text,
+        "analysis": result,
+    }
 
 
 # ------------------------------------------------------------------ remediation playbook
@@ -620,6 +743,8 @@ async def get_playbook_csv(vendor: str) -> PlainTextResponse:
             [f"ISO:{c}" for c in (cx.get("iso27001") or [])]
             + [f"SOC2:{c}" for c in (cx.get("soc2") or [])]
             + [f"NIST:{c}" for c in (cx.get("nist_csf") or [])]
+            + [f"SEBI-CSCRF:{c}" for c in (cx.get("sebi_cscrf") or [])]
+            + [f"RBI-ITGF:{c}" for c in (cx.get("rbi_itgf") or [])]
         )
         w.writerow([
             vendor,
@@ -649,6 +774,40 @@ async def get_playbook(vendor: str) -> dict:
 
 
 # ------------------------------------------------------------------ audit bundle (v3.2)
+@app.post("/audit/{vendor}/share")
+async def audit_share(vendor: str, request: Request) -> dict:
+    """Mint a time-limited, HMAC-signed public URL for a vendor's audit ZIP.
+
+    The returned URL is safe to mail to an auditor — it encodes the vendor +
+    an expiry time, signed with a server-side secret. No login required to
+    open it; expires after `VG_AUDIT_TTL_SECONDS` (default 24h).
+    """
+    vendor = vendor.strip().lower()
+    scan = await store.load_scan(vendor)
+    if not scan:
+        raise HTTPException(404, f"No scan for '{vendor}'.")
+    token, expires_at = signed_url.sign(vendor)
+    base = str(request.base_url).rstrip("/")
+    return {
+        "vendor": vendor,
+        "token": token,
+        "expires_at": expires_at,
+        "expires_at_iso": datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
+        "ttl_seconds": signed_url.ttl_seconds(),
+        "public_url": f"{base}/audit/public/{token}",
+    }
+
+
+@app.get("/audit/public/{token}")
+async def audit_public(token: str):
+    """Download the audit ZIP via a signed, time-limited token. No auth."""
+    vendor = signed_url.verify(token)
+    if not vendor:
+        raise HTTPException(404, "Invalid or expired audit link.")
+    metrics.inc("vendorguard_audit_public_downloads_total")
+    return await audit_bundle(vendor)
+
+
 @app.get("/audit/{vendor}.zip")
 async def audit_bundle(vendor: str):
     """One-click DPDP evidence pack:

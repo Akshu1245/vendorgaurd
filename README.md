@@ -1,10 +1,29 @@
-# VendorGuard AI &nbsp;·&nbsp; v3.2.1
+# VendorGuard AI &nbsp;·&nbsp; v3.3.0
 
 > **The Vendor Access Control Plane for DPDP-compliant India.**
-> Scan → Score → DPDP-map → Gateway-protect → Fix the contract → Ship the audit ZIP → Play the stage-day backup video.
-> Every finding grounded in the DPDP Act (§-numbered, gazette-page cited, ₹-penalty mapped) and cross-walked to ISO 27001 / SOC 2 / NIST CSF.
+> One-click *Autonomous Onboard* → OSINT → Score → DPDP-map → Contract Intel (accepts PDF DPAs) → Gateway-protect → Stage-day backup video → **Real-breach back-test** against AIIMS 2022, BigBasket 2020, MobiKwik 2021.
+> Every finding grounded in the DPDP Act (§-numbered, gazette-page cited, ₹-penalty mapped) and cross-walked to ISO 27001, SOC 2, NIST CSF 2.0, **SEBI CSCRF**, and **RBI IT Governance Framework** — the full India-first regulatory stack.
 
-![status](https://img.shields.io/badge/status-hackathon%20ready-success) ![stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20Tailwind-blue) ![ml](https://img.shields.io/badge/ML-IsolationForest-6366f1) ![rules](https://img.shields.io/badge/rules-16%20DPDP%20contract%20rules-f59e0b) ![rag](https://img.shields.io/badge/RAG-49%20passages-f59e0b) ![osint](https://img.shields.io/badge/OSINT-crt.sh%20live-10b981) ![selftest](https://img.shields.io/badge/selftest-4%2F4%20benchmark%20DPAs-10b981) ![tests](https://img.shields.io/badge/pytest-31%2F32-10b981) ![license](https://img.shields.io/badge/license-MIT-green)
+### What's new in v3.3.0 (hackathon-final)
+
+| Feature | Endpoint / UI | Why it wins |
+|---|---|---|
+| **Autonomous onboarding agent** (6 steps, SSE-streamed) | `POST /agent/onboard` · `⚡ Autonomous Onboard` button | Directly hits the 2026 "agentic AI" judging rubric with deterministic primitives — no LLM flakiness |
+| **Real-breach back-test** (3 Indian cases) | `GET /backtest[/{id}]` · sidebar → Real Breach Back-test | Makes abstract DPDP theory concrete for Indian judges |
+| **PDF upload for Contract Intel** | `POST /contract/analyze/upload` · drop-zone in Contract panel | Procurement teams hand you real DPAs as PDFs, not pasted text |
+| **Signed audit-ZIP share links** (24h HMAC) | `POST /audit/{vendor}/share` · "🔗 Public share link" button | Regulator can download evidence without a login — no auth server needed |
+| **72-hour DPDP + 6-hour CERT-In countdown clock** | Header banner, fires on first block | Visualises the exact SLA you'd miss under §8(6) + CERT-In 2022 directive |
+| **Persona switcher** (CISO / Legal / DPO) | Header chip group | One screen, three audiences — matches the three judge personas in the rubric |
+| **Vendor comparison** (side-by-side diff) | Executive Board → Compare vendors | Procurement shortlist screen — exactly what CFOs want |
+| **Explain-this RAG tooltips** + **Contested-verdict evidence** | `?` buttons + `disagree` buttons on every gap | Defends every red verdict with a reproducible trace |
+| **Slack / Teams / PagerDuty webhook preview** | Modal on alert card | Shows enterprise-integration readiness without actually wiring a webhook |
+| **SEBI CSCRF + RBI IT Governance Framework** in crosswalk | `GET /framework/{section}` | Covers the two India-specific frameworks every Indian CISO reads |
+| **Prometheus `/metrics` endpoint** | `GET /metrics` | Zero-dep text exposition — drops straight into any SRE stack |
+| **Live demo QR + scan-your-own-domain prompt** | Header `🔗 QR` + 3s sticky nudge | Any judge with a phone = live demo in 3 seconds |
+| **Keyboard shortcut legend** (`?` key) | Header `?` · press `?` | Shows power-user depth without cluttering the UI |
+
+
+![status](https://img.shields.io/badge/status-hackathon%20ready-success) ![stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20Tailwind-blue) ![ml](https://img.shields.io/badge/ML-IsolationForest-6366f1) ![rules](https://img.shields.io/badge/rules-16%20DPDP%20contract%20rules-f59e0b) ![rag](https://img.shields.io/badge/RAG-49%20passages-f59e0b) ![osint](https://img.shields.io/badge/OSINT-crt.sh%20live-10b981) ![selftest](https://img.shields.io/badge/selftest-4%2F4%20benchmark%20DPAs-10b981) ![tests](https://img.shields.io/badge/pytest-all%20green-10b981) ![frameworks](https://img.shields.io/badge/frameworks-ISO%20%2B%20SOC2%20%2B%20NIST%20%2B%20SEBI%20CSCRF%20%2B%20RBI-6366f1) ![agent](https://img.shields.io/badge/agent-6%20step%20autonomous%20onboard-f59e0b) ![license](https://img.shields.io/badge/license-MIT-green)
 
 Built for **Athernex 2026** (DSCE × BMSCE) by **Team Rashi Innovators**.
 
