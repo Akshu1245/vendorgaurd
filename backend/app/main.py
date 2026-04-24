@@ -27,6 +27,7 @@ from app.modules import (
     alerts,
     anomaly,
     backtest,
+    cache,
     canary,
     compliance_diff,
     contract,
@@ -45,6 +46,9 @@ from app.modules import (
     store,
     trust_score,
 )
+from app.modules.logging_config import audit_log, get_logger
+
+log = get_logger("main")
 from app.schemas import (
     ActivateGatewayRequest,
     AlertEvent,
@@ -145,10 +149,19 @@ def health() -> dict:
     return {"ok": True, "version": __version__}
 
 
+@app.get("/cache/stats")
+def cache_stats() -> dict:
+    """Cache statistics for monitoring."""
+    return {"ok": True, **cache.stats()}
+
+
 # ------------------------------------------------------------------ companies library
 @app.get("/companies")
 def companies_library() -> dict:
     """Categorised demo company library for the frontend Company Selection panel."""
+    cached = cache.get("companies_library")
+    if cached:
+        return cached
     from app.modules.trust_score import compute_score
     from app.schemas import Finding
 
@@ -178,7 +191,7 @@ def companies_library() -> dict:
             "high_count": sum(1 for f in raw_findings if f.get("severity") == "high"),
         })
     companies.sort(key=lambda c: c["trust_score"])
-    return {
+    result = {
         "total": len(companies),
         "categories": {
             "strong": [c for c in companies if c["category"] == "strong"],
@@ -187,6 +200,9 @@ def companies_library() -> dict:
         },
         "all": companies,
     }
+    cache.put("companies_library", result, ttl=600)
+    log.info(f"Companies library loaded: {len(companies)} vendors")
+    return result
 
 
 # ------------------------------------------------------------------ audit pipeline (step-by-step)
@@ -197,6 +213,8 @@ async def audit_pipeline(vendor: str) -> dict:
     if not vendor:
         raise HTTPException(400, "Missing vendor.")
 
+    log.info(f"Audit pipeline started for {vendor}")
+    audit_log("audit_start", vendor)
     steps = []
     t0 = time.perf_counter()
 
@@ -315,6 +333,8 @@ async def audit_pipeline(vendor: str) -> dict:
     events.publish("scans", {"vendor": vendor, "trust": score.model_dump(), "exposure_inr": exposure})
     metrics.inc("vendorguard_scans_total", band=score.band)
     metrics.inc("vendorguard_findings_total", band=score.band, value=len(merged))
+    log.info(f"Audit pipeline complete for {vendor}: score={score.score} band={score.band} findings={len(merged)} duration={total_ms}ms")
+    audit_log("audit_complete", vendor, score=score.score, band=score.band, findings=len(merged), duration_ms=total_ms)
 
     return {
         "vendor": vendor,
@@ -377,6 +397,14 @@ async def virustotal_scan(domain: str) -> dict:
             "equifax-analytics.com": {"malicious": 3, "suspicious": 4, "harmless": 83, "undetected": 0, "reputation": -8},
             "logix-crm-india.com": {"malicious": 4, "suspicious": 2, "harmless": 84, "undetected": 0, "reputation": -12},
             "paytrust-partner.com": {"malicious": 0, "suspicious": 3, "harmless": 87, "undetected": 0, "reputation": 2},
+            "google-cloud-vendor.com": {"malicious": 0, "suspicious": 0, "harmless": 90, "undetected": 0, "reputation": 45},
+            "microsoft-enterprise.com": {"malicious": 0, "suspicious": 0, "harmless": 90, "undetected": 0, "reputation": 42},
+            "apple-enterprise-vendor.com": {"malicious": 0, "suspicious": 0, "harmless": 90, "undetected": 0, "reputation": 48},
+            "shopquick-vendor.com": {"malicious": 2, "suspicious": 3, "harmless": 85, "undetected": 0, "reputation": -5},
+            "healthbuddy-partner.com": {"malicious": 0, "suspicious": 1, "harmless": 89, "undetected": 0, "reputation": 3},
+            "databridge-cloud.com": {"malicious": 1, "suspicious": 2, "harmless": 87, "undetected": 0, "reputation": -3},
+            "cleanpay-gateway.com": {"malicious": 0, "suspicious": 0, "harmless": 90, "undetected": 0, "reputation": 35},
+            "tcs-outsource-vendor.com": {"malicious": 0, "suspicious": 2, "harmless": 88, "undetected": 0, "reputation": 5},
         }
         if domain in demo_vt_data:
             result["analysis"] = demo_vt_data[domain]
@@ -781,33 +809,33 @@ async def alerts_stream(request: Request):
     q_agent = events.subscribe("agent")
 
     async def event_gen():
+        merged: asyncio.Queue = asyncio.Queue(maxsize=512)
+        queues = [q_alerts, q_scans, q_traffic, q_agent]
+
+        async def _relay(src: asyncio.Queue):
+            """Relay items from a source queue into the merged queue."""
+            try:
+                while True:
+                    item = await src.get()
+                    await merged.put(item)
+            except asyncio.CancelledError:
+                pass
+
+        relay_tasks = [asyncio.create_task(_relay(q)) for q in queues]
         try:
-            # Send an immediate hello so the client EventSource fires onopen.
             yield {"event": "hello", "data": '{"ok":true}'}
             while True:
                 if await request.is_disconnected():
                     break
-                done, pending = await asyncio.wait(
-                    {
-                        asyncio.create_task(q_alerts.get()),
-                        asyncio.create_task(q_scans.get()),
-                        asyncio.create_task(q_traffic.get()),
-                        asyncio.create_task(q_agent.get()),
-                    },
-                    timeout=15,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                for p in pending:
-                    p.cancel()
-                if not done:
-                    yield {"event": "ping", "data": "{}"}
-                    continue
-                for t in done:
-                    data = t.result()
-                    # Heuristic routing by subscriber source queue
-                    # (same payload shape — channel name is informational).
+                try:
+                    data = await asyncio.wait_for(merged.get(), timeout=15)
                     yield {"event": "message", "data": data}
+                except asyncio.TimeoutError:
+                    yield {"event": "ping", "data": "{}"}
         finally:
+            for t in relay_tasks:
+                t.cancel()
+            await asyncio.gather(*relay_tasks, return_exceptions=True)
             events.unsubscribe("alerts", q_alerts)
             events.unsubscribe("scans", q_scans)
             events.unsubscribe("gateway.traffic", q_traffic)

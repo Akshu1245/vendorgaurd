@@ -201,7 +201,7 @@ async def answer(query: str) -> dict:
 
             client = AsyncAnthropic(api_key=settings.anthropic_api_key)
             msg = await client.messages.create(
-                model="claude-3-5-sonnet-latest",
+                model=settings.anthropic_model,
                 max_tokens=400,
                 system=(
                     "You are a DPDP Act 2023 advisor. Answer the user's question using ONLY the "

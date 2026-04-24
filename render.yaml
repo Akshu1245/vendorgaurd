@@ -19,7 +19,7 @@ services:
       - key: DEMO_MODE
         value: "true"
       - key: AI_PROVIDER
-        value: anthropic
+        value: openai
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
