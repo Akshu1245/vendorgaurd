@@ -145,6 +145,285 @@ def health() -> dict:
     return {"ok": True, "version": __version__}
 
 
+# ------------------------------------------------------------------ companies library
+@app.get("/companies")
+def companies_library() -> dict:
+    """Categorised demo company library for the frontend Company Selection panel."""
+    from app.modules.trust_score import compute_score
+    from app.schemas import Finding
+
+    data_dir = Path(__file__).parent / "data"
+    vendors_data = json.loads((data_dir / "demo_vendors.json").read_text())
+    companies = []
+    for domain, info in vendors_data.items():
+        raw_findings = info.get("findings", [])
+        findings = [Finding(**{k: v for k, v in f.items() if k != "tag"}) for f in raw_findings]
+        score_obj = compute_score(findings)
+        category = info.get("category")
+        if category not in ("strong", "breached", "mid"):
+            if score_obj.score >= 80:
+                category = "strong"
+            elif score_obj.score < 40:
+                category = "breached"
+            else:
+                category = "mid"
+        companies.append({
+            "domain": domain,
+            "label": info.get("label", domain),
+            "category": category,
+            "trust_score": score_obj.score,
+            "band": score_obj.band,
+            "findings_count": len(raw_findings),
+            "critical_count": sum(1 for f in raw_findings if f.get("severity") == "critical"),
+            "high_count": sum(1 for f in raw_findings if f.get("severity") == "high"),
+        })
+    companies.sort(key=lambda c: c["trust_score"])
+    return {
+        "total": len(companies),
+        "categories": {
+            "strong": [c for c in companies if c["category"] == "strong"],
+            "mid": [c for c in companies if c["category"] == "mid"],
+            "breached": [c for c in companies if c["category"] == "breached"],
+        },
+        "all": companies,
+    }
+
+
+# ------------------------------------------------------------------ audit pipeline (step-by-step)
+@app.post("/audit/pipeline/{vendor}")
+async def audit_pipeline(vendor: str) -> dict:
+    """Step-by-step audit pipeline with detailed processing logs."""
+    vendor = vendor.strip().lower()
+    if not vendor:
+        raise HTTPException(400, "Missing vendor.")
+
+    steps = []
+    t0 = time.perf_counter()
+
+    # Step 1: DNS & TLS
+    step_t = time.perf_counter()
+    dns_findings = await osint._dns_hygiene(vendor)
+    tls_findings = await osint._tls_async(vendor)
+    steps.append({
+        "step": 1, "label": "DNS & TLS Analysis",
+        "icon": "🔐", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Checked SPF/DKIM/DMARC + TLS config. Found {len(dns_findings) + len(tls_findings)} issue(s).",
+        "sources": ["DNS resolver", "TLS handshake"],
+        "findings_count": len(dns_findings) + len(tls_findings),
+    })
+
+    # Step 2: Certificate Transparency
+    step_t = time.perf_counter()
+    ct_findings = await osint._crtsh(vendor)
+    steps.append({
+        "step": 2, "label": "Certificate Transparency Scan",
+        "icon": "📜", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Queried crt.sh for subdomain enumeration. Found {len(ct_findings)} CT log entries.",
+        "sources": ["crt.sh (public CT logs)"],
+        "findings_count": len(ct_findings),
+    })
+
+    # Step 3: Threat Intelligence (Shodan + HIBP + VT)
+    step_t = time.perf_counter()
+    shodan_f = await osint._shodan(vendor)
+    hibp_f = await osint._hibp(vendor)
+    vt_f = await osint._virustotal(vendor)
+    steps.append({
+        "step": 3, "label": "Threat Intelligence Feeds",
+        "icon": "🕵️", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Queried Shodan ({len(shodan_f)}), HIBP ({len(hibp_f)}), VirusTotal ({len(vt_f)}).",
+        "sources": [
+            f"Shodan {'(live)' if settings.has_shodan else '(mock)'}",
+            f"HaveIBeenPwned {'(live)' if settings.has_hibp else '(mock)'}",
+            f"VirusTotal {'(live)' if settings.has_virustotal else '(mock)'}",
+        ],
+        "findings_count": len(shodan_f) + len(hibp_f) + len(vt_f),
+        "apis_used": {
+            "shodan": settings.has_shodan,
+            "hibp": settings.has_hibp,
+            "virustotal": settings.has_virustotal,
+        },
+    })
+
+    # Step 4: Vulnerability scanning
+    step_t = time.perf_counter()
+    nuclei_f = await osint.run_nuclei(vendor)
+    steps.append({
+        "step": 4, "label": "Vulnerability Scanning (Nuclei)",
+        "icon": "🔍", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Ran ProjectDiscovery Nuclei templates. {len(nuclei_f)} CVE/misconfig detected.",
+        "sources": [f"Nuclei {'(live)' if settings.has_nuclei else '(mock)'}"],
+        "findings_count": len(nuclei_f),
+    })
+
+    # Merge all findings
+    all_findings = dns_findings + tls_findings + ct_findings + shodan_f + hibp_f + vt_f + nuclei_f
+    # Add demo mock findings if applicable
+    mock = osint._mock_findings(vendor) if settings.demo_mode else []
+    by_id = {f.id: f for f in mock}
+    for f in all_findings:
+        by_id[f.id] = f
+    merged = list(by_id.values())
+
+    # Step 5: DPDP Mapping
+    step_t = time.perf_counter()
+    mappings = dpdp.map_findings(merged)
+    exposure = dpdp.total_exposure(mappings)
+    steps.append({
+        "step": 5, "label": "DPDP Act 2023 Clause Mapping",
+        "icon": "📋", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Mapped {len(merged)} findings to {len(mappings)} DPDP clauses. Exposure: ₹{exposure/1e7:.1f}Cr.",
+        "sources": ["DPDP RAG engine (49 passages)"],
+        "findings_count": len(mappings),
+    })
+
+    # Step 6: Trust Score + AI Summary
+    step_t = time.perf_counter()
+    score = trust_score.compute_score(merged)
+    summary = await ai_risk.summarise(vendor, merged, mappings, exposure)
+    steps.append({
+        "step": 6, "label": "AI Risk Analysis & Scoring",
+        "icon": "🧠", "status": "complete",
+        "duration_ms": int((time.perf_counter() - step_t) * 1000),
+        "details": f"Trust score: {score.score}/100 ({score.band}). AI provider: {settings.ai_provider}.",
+        "sources": [
+            f"ML scorer (IsolationForest)",
+            f"AI summary ({settings.ai_provider}{'(live)' if settings.has_ai else '(template)'})",
+        ],
+        "findings_count": 0,
+    })
+
+    total_ms = int((time.perf_counter() - t0) * 1000)
+
+    # Save scan
+    resp = {
+        "vendor": vendor,
+        "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "duration_ms": total_ms,
+        "findings": [f.model_dump() for f in merged],
+        "dpdp": [m.model_dump() for m in mappings],
+        "ai_summary": summary,
+        "trust": score.model_dump(),
+        "total_dpdp_exposure_inr": exposure,
+    }
+    await store.save_scan(vendor, resp)
+    events.publish("scans", {"vendor": vendor, "trust": score.model_dump(), "exposure_inr": exposure})
+    metrics.inc("vendorguard_scans_total", band=score.band)
+    metrics.inc("vendorguard_findings_total", band=score.band, value=len(merged))
+
+    return {
+        "vendor": vendor,
+        "pipeline": {
+            "total_steps": len(steps),
+            "total_duration_ms": total_ms,
+            "steps": steps,
+        },
+        "result": resp,
+        "intelligence_report": {
+            "classification": "VENDOR RISK INTELLIGENCE REPORT",
+            "subject": vendor,
+            "date": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
+            "trust_score": score.score,
+            "trust_band": score.band,
+            "total_findings": len(merged),
+            "critical_findings": sum(1 for f in merged if f.severity == "critical"),
+            "high_findings": sum(1 for f in merged if f.severity == "high"),
+            "dpdp_clauses_triggered": len(set(m.clause for m in mappings)),
+            "total_exposure_inr": exposure,
+            "data_sources_used": list(set(f.source for f in merged)),
+            "apis_queried": {
+                "shodan": settings.has_shodan,
+                "hibp": settings.has_hibp,
+                "virustotal": settings.has_virustotal,
+                "nuclei": settings.has_nuclei,
+                "ai": settings.has_ai,
+            },
+            "executive_summary": summary,
+            "recommendation": (
+                "BLOCK — Immediate vendor access revocation required"
+                if score.band == "block"
+                else "WATCH — Enhanced monitoring recommended"
+                if score.band == "watch"
+                else "SAFE — Standard vendor oversight sufficient"
+            ),
+        },
+    }
+
+
+# ------------------------------------------------------------------ VirusTotal dedicated endpoint
+@app.get("/virustotal/{domain}")
+async def virustotal_scan(domain: str) -> dict:
+    """Dedicated VirusTotal domain scan endpoint."""
+    domain = domain.strip().lower()
+    if not domain:
+        raise HTTPException(400, "Missing domain.")
+
+    result = {
+        "domain": domain,
+        "source": "VirusTotal",
+        "api_available": settings.has_virustotal,
+        "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+    if not settings.has_virustotal:
+        # Return mock data for demo
+        demo_vt_data = {
+            "yahoo-legacy-services.com": {"malicious": 5, "suspicious": 2, "harmless": 83, "undetected": 0, "reputation": -15},
+            "equifax-analytics.com": {"malicious": 3, "suspicious": 4, "harmless": 83, "undetected": 0, "reputation": -8},
+            "logix-crm-india.com": {"malicious": 4, "suspicious": 2, "harmless": 84, "undetected": 0, "reputation": -12},
+            "paytrust-partner.com": {"malicious": 0, "suspicious": 3, "harmless": 87, "undetected": 0, "reputation": 2},
+        }
+        if domain in demo_vt_data:
+            result["analysis"] = demo_vt_data[domain]
+            result["mode"] = "demo"
+        else:
+            result["analysis"] = {"malicious": 0, "suspicious": 0, "harmless": 90, "undetected": 0, "reputation": 5}
+            result["mode"] = "demo"
+        result["verdict"] = "malicious" if result["analysis"]["malicious"] > 0 else ("suspicious" if result["analysis"]["suspicious"] > 0 else "clean")
+        return result
+
+    import httpx as _httpx
+    url = f"https://www.virustotal.com/api/v3/domains/{domain}"
+    headers = {"x-apikey": settings.virustotal_api_key}
+    try:
+        async with _httpx.AsyncClient(timeout=10.0, headers=headers) as c:
+            r = await c.get(url)
+            if r.status_code != 200:
+                result["error"] = f"VT returned HTTP {r.status_code}"
+                result["mode"] = "error"
+                return result
+            data = r.json()
+    except Exception as exc:
+        result["error"] = repr(exc)
+        result["mode"] = "error"
+        return result
+
+    attrs = data.get("data", {}).get("attributes", {})
+    stats = attrs.get("last_analysis_stats", {})
+    result["analysis"] = {
+        "malicious": int(stats.get("malicious", 0)),
+        "suspicious": int(stats.get("suspicious", 0)),
+        "harmless": int(stats.get("harmless", 0)),
+        "undetected": int(stats.get("undetected", 0)),
+        "reputation": int(attrs.get("reputation", 0)),
+    }
+    result["mode"] = "live"
+    result["verdict"] = (
+        "malicious" if result["analysis"]["malicious"] > 0
+        else "suspicious" if result["analysis"]["suspicious"] > 0
+        else "clean"
+    )
+    result["categories"] = attrs.get("categories", {})
+    result["registrar"] = attrs.get("registrar", "")
+    result["creation_date"] = attrs.get("creation_date", 0)
+    return result
+
+
 # ------------------------------------------------------------------ backtests
 @app.get("/backtest")
 def backtest_list() -> dict:

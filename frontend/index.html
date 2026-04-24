@@ -7,6 +7,7 @@
   <title>VendorGuard AI — Vendor Access Control Plane</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="./config.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -157,6 +158,74 @@
     body[data-persona="dpo"] .hide-dpo { display: none !important; }
     body[data-persona="ciso"] .hide-ciso { display: none !important; }
 
+    /* Demo mode banner */
+    .demo-banner { background: #fbbf24; color: #0f172a; font-weight: 600; font-size: 13px; padding: 8px 16px; text-align: center; position: relative; z-index: 35; }
+    .demo-banner .exit-demo { background: #0f172a; color: #fbbf24; border: none; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: 12px; }
+    .demo-banner .exit-demo:hover { background: #1e293b; }
+
+    /* Health check banner */
+    .health-banner { background: #1e293b; color: #94a3b8; font-size: 12px; padding: 8px 16px; text-align: center; border-bottom: 1px solid #334155; position: relative; z-index: 34; }
+    .health-banner.ready { background: rgba(16,185,129,0.1); color: #6ee7b7; }
+    .health-banner.offline { background: rgba(244,63,94,0.1); color: #fda4af; }
+
+    /* Scan progress overlay */
+    .scan-overlay { position: fixed; inset: 0; background: rgba(2,6,23,0.85); z-index: 50; display: grid; place-items: center; backdrop-filter: blur(6px); }
+    .scan-overlay .scan-steps { max-width: 480px; width: 90%; }
+    .scan-step { padding: 10px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 10px; background: #0f172a; border: 1px solid #1e293b; color: #475569; transition: all 300ms ease; }
+    .scan-step.active { border-color: #f59e0b; color: #fde68a; background: rgba(245,158,11,0.08); }
+    .scan-step.done { border-color: #10b981; color: #6ee7b7; }
+    .scan-step .step-icon { width: 24px; text-align: center; }
+    .scan-slow-msg { color: #fcd34d; font-size: 12px; text-align: center; margin-top: 16px; animation: pulse 2s ease-in-out infinite; }
+
+    /* Guided tour */
+    .tour-overlay { position: fixed; inset: 0; background: rgba(2,6,23,0.6); z-index: 55; backdrop-filter: blur(2px); }
+    .tour-tooltip { position: fixed; z-index: 56; background: #0f172a; border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .tour-tooltip .tour-step-indicator { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+    .tour-tooltip .tour-text { font-size: 14px; color: #e2e8f0; line-height: 1.6; margin-bottom: 16px; }
+    .tour-tooltip .tour-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* SLA breached flashing */
+    @keyframes sla-flash { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .sla-breached { animation: sla-flash 0.5s ease-in-out infinite; background: #ef4444 !important; color: white !important; }
+
+    /* Typing indicator */
+    .typing-dots { display: inline-flex; gap: 4px; align-items: center; }
+    .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: #94a3b8; animation: dot-pulse 1.4s ease-in-out infinite; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-pulse { 0%,80%,100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+
+    /* Empty state placeholder */
+    .empty-state { text-align: center; padding: 32px 16px; color: #64748b; }
+    .empty-state .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
+    .empty-state .empty-text { font-size: 13px; margin-bottom: 12px; }
+    .empty-state .empty-arrow { font-size: 20px; transform: rotate(-90deg); display: inline-block; margin-bottom: 4px; }
+    .empty-state .empty-cta { font-size: 12px; }
+
+    /* Spinner with pulse */
+    @keyframes status-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+    .status-loading { animation: status-pulse 1.5s ease-in-out infinite; }
+
+    /* Trust score flash animation */
+    @keyframes scoreFlash { 0%{box-shadow:0 0 0 0 rgba(245,158,11,0.6)} 50%{box-shadow:0 0 40px 10px rgba(245,158,11,0.3)} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0)} }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .score-flash { animation: scoreFlash 1.5s ease-out; }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .flex.items-center.gap-4.px-5.py-3 { flex-wrap: wrap; }
+      aside { display: none !important; }
+      main { padding: 12px !important; }
+      #vendor-input { min-width: 0 !important; width: 100% !important; }
+      .overflow-x-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 600px; }
+      .status-strip-mobile { display: flex !important; flex-wrap: wrap; gap: 4px; }
+      #scan-btn, #agent-btn { width: 100%; }
+      .flex-1.flex.items-center.gap-2 { flex-wrap: wrap; }
+    }
+
     /* v3.3 — keyboard shortcut kbd style (T16) */
     kbd.kb {
       display: inline-block; padding: 2px 6px; font-family: 'JetBrains Mono', monospace;
@@ -188,6 +257,41 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
+  <!-- Demo Mode Banner (hidden by default) -->
+  <div id="demo-banner" class="demo-banner hidden">
+    ⚠ DEMO MODE — All data is synthetic. Switch to live scan for real results.
+    <button id="exit-demo-btn" class="exit-demo">✕ Exit Demo</button>
+  </div>
+
+  <!-- Health Check Banner -->
+  <div id="health-banner" class="health-banner hidden">
+    <span id="health-banner-text">⏳ Backend is waking up (Render free tier — ~20s). Demo Mode is available now.</span>
+  </div>
+
+  <!-- Scan Progress Overlay (hidden by default) -->
+  <div id="scan-overlay" class="scan-overlay hidden">
+    <div class="scan-steps">
+      <h2 class="text-xl font-bold text-center mb-6 text-amber-300">Scanning vendor…</h2>
+      <div id="scan-step-1" class="scan-step"><span class="step-icon">○</span> 🔍 Running OSINT (Shodan, HaveIBeenPwned, crt.sh)…</div>
+      <div id="scan-step-2" class="scan-step"><span class="step-icon">○</span> 🧠 Scoring with ML model…</div>
+      <div id="scan-step-3" class="scan-step"><span class="step-icon">○</span> 📋 Mapping DPDP clauses…</div>
+      <div id="scan-step-4" class="scan-step"><span class="step-icon">○</span> 📝 Drafting board summary…</div>
+      <div id="scan-step-5" class="scan-step"><span class="step-icon">○</span> ✅ Done</div>
+      <div id="scan-slow-msg" class="scan-slow-msg hidden">Still working… Render cold start can take up to 45s</div>
+    </div>
+  </div>
+
+  <!-- Guided Tour Overlay (hidden by default) -->
+  <div id="tour-overlay" class="tour-overlay hidden"></div>
+  <div id="tour-tooltip" class="tour-tooltip hidden">
+    <div class="tour-step-indicator" id="tour-step-indicator"></div>
+    <div class="tour-text" id="tour-text"></div>
+    <div class="tour-actions">
+      <button id="tour-skip" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">Skip tour</button>
+      <button id="tour-next" class="btn-primary px-4 py-1.5 rounded-lg text-sm">Next →</button>
+    </div>
+  </div>
+
   <!-- =================== TOP BAR =================== -->
   <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
     <div class="flex items-center gap-4 px-5 py-3">
@@ -202,9 +306,9 @@
 
       <!-- Vendor input + scan -->
       <div class="flex-1 flex items-center gap-2 min-w-0">
-        <input id="vendor-input" type="text" value="paytrust-partner.com"
+        <input id="vendor-input" type="text" value=""
                class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm mono focus:outline-none focus:border-amber-400"
-               placeholder="vendor domain, e.g. paytrust-partner.com" />
+               placeholder="e.g. openai.com, razorpay.com" />
         <button id="scan-btn" class="btn-primary px-4 py-2 rounded-lg text-sm disabled:pointer-events-none">
           Scan Vendor
         </button>
@@ -223,22 +327,24 @@
         <span id="selftest-chip" class="chip mono hidden clickable" title="Click to re-run rule engine self-test against benchmark DPAs">selftest: …</span>
         <span id="kpi-savings-chip" class="chip mono hidden" style="color:#fca5a5; border-color:rgba(244,63,94,0.4); background:rgba(244,63,94,0.08)" title="₹ DPDP exposure avoided via gateway blocks">₹ saved: …</span>
         <span id="kpi-blocks-chip" class="chip mono hidden" style="color:#fcd34d; border-color:rgba(245,158,11,0.4); background:rgba(245,158,11,0.08)" title="Attacks auto-contained">blocks: …</span>
-        <span class="chip mono" style="color:#6ee7b7; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.08)">v3.3.0</span>
+        <a href="https://github.com/r88213584-create/vendor/releases" target="_blank" class="chip mono" style="color:#6ee7b7; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.08)" title="View changelog">v3.3.0</a>
       </div>
 
       <!-- Persona switcher (T6) -->
       <div class="flex items-center gap-1 border border-slate-800 rounded-lg p-0.5 bg-slate-950/40" title="Switch audience lens: CISO (default) / Legal / DPO">
-        <button data-persona="ciso"  class="persona-chip chip mono active">CISO</button>
-        <button data-persona="legal" class="persona-chip chip mono">Legal</button>
-        <button data-persona="dpo"   class="persona-chip chip mono">DPO</button>
+        <button data-persona="ciso"  class="persona-chip chip mono active">CISO View</button>
+        <button data-persona="legal" class="persona-chip chip mono">Legal View</button>
+        <button data-persona="dpo"   class="persona-chip chip mono">DPO View</button>
       </div>
 
       <!-- Demo mode + QR + help -->
       <div class="flex items-center gap-2">
         <span id="demo-badge" class="demo-badge hidden">DEMO RUNNING…</span>
-        <button id="qr-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Public demo QR (for judges to scan your own domain)">🔗 QR</button>
+        <button id="ask-dpdp-nav-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Ask a DPDP question">💬 Ask DPDP</button>
+        <button id="qr-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Share this demo with judges">🔗 Share / QR</button>
         <button id="help-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Keyboard shortcuts (press ?)">?</button>
-        <button id="demo-btn" class="btn-ghost px-3 py-2 rounded-lg text-xs mono" title="Run the scripted pitch demo (Ctrl+Shift+D)">
+        <button id="tour-btn" class="btn-primary px-3 py-2 rounded-lg text-xs mono" title="Guided demo walkthrough">🎯 Guided Demo</button>
+        <button id="demo-btn" class="btn-primary px-3 py-2 rounded-lg text-xs mono" title="Populate all sections with demo data" style="background: linear-gradient(90deg, #f59e0b, #ef4444); animation: pulseBorder 2s ease-in-out infinite;">
           ▶ Demo Mode
         </button>
       </div>
@@ -257,7 +363,11 @@
         </span>
       </div>
       <div class="flex items-center gap-2">
+        <span id="cd-sla-dpb" class="hidden badge-sev sev-critical sla-breached">⚠ SLA BREACHED</span>
+        <span id="cd-sla-certin" class="hidden badge-sev sev-critical sla-breached">⚠ CERT-In SLA BREACHED</span>
         <span id="cd-vendor" class="text-slate-400 mono"></span>
+        <button id="cd-simulate" class="btn-danger px-2 py-1 rounded text-[11px]" title="Set T=0 to now and start countdown">🔴 Simulate Breach Now</button>
+        <button id="cd-reset" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Reset to 72h static display">↻ Reset</button>
         <button id="cd-certin-dl" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Download auto-filled CERT-In Form-A PDF">Draft CERT-In Form-A</button>
         <button id="cd-dismiss" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Hide the clock (alert stays in the log)">✕</button>
       </div>
@@ -293,10 +403,6 @@
         </div>
       </div>
 
-      <div class="mt-auto px-4 py-3 border-t border-slate-800 text-[10px] text-slate-500 leading-snug">
-        Built for <span class="text-amber-400 font-semibold">Athernex 2026</span><br/>
-        Team Rashi Innovators · DSCE × BMSCE
-      </div>
     </aside>
 
     <!-- =================== MAIN =================== -->
@@ -389,7 +495,7 @@
           </div>
         </div>
         <div id="findings-list" class="space-y-3">
-          <div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to populate findings.</div>
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">🔍</div><div class="empty-text">Run a scan above to populate OSINT findings</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
       </section>
 
@@ -406,12 +512,15 @@
           </div>
         </div>
         <div id="dpdp-list" class="space-y-2">
-          <div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to see mapped clauses.</div>
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Run a scan above to see DPDP clause mappings with ₹ liability</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
-        <div class="pt-2">
-          <a id="dpdp-pdf" href="#" target="_blank" class="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm pointer-events-none opacity-40">
-            ⬇ Download DPDP exposure report
-          </a>
+        <div class="pt-2 flex gap-2">
+          <button id="dpdp-csv-dl" class="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm" onclick="generateDpdpCsv()">
+            ⬇ Download DPDP Exposure (CSV)
+          </button>
+          <button class="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm" onclick="generateBoardPdf()">
+            ⬇ Download Board Report (PDF)
+          </button>
         </div>
       </section>
 
@@ -470,7 +579,7 @@
               <span id="sse-chip" class="chip mono">stream: …</span>
             </div>
             <div id="alerts-list" class="mt-3 space-y-3 max-h-[520px] overflow-y-auto scroll-fade pr-1">
-              <div class="text-sm text-slate-500 italic">No alerts yet — activate the gateway and simulate an attack.</div>
+              <div class="empty-state"><div class="empty-icon">🛡️</div><div class="empty-text">Activate the gateway and simulate an attack to see live alerts</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
             </div>
           </div>
 
@@ -527,6 +636,11 @@
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-2">
           <div id="graph" class="rounded-lg bg-slate-950"></div>
+          <div id="graph-placeholder" class="text-center py-8 text-slate-500">
+            <div class="text-3xl mb-2">🌐</div>
+            <div class="text-sm">Scan vendors to add nodes. Edge color = risk band.</div>
+            <button class="btn-ghost px-3 py-1 rounded text-xs mt-2" onclick="activateDemoMode()">Try Demo Mode</button>
+          </div>
         </div>
         <div class="flex items-center justify-between flex-wrap gap-2 text-xs">
           <div class="flex items-center gap-4 text-slate-400">
@@ -569,8 +683,7 @@
           <p class="text-sm text-slate-400">A one-click PDF you can hand to a board meeting. ReportLab-rendered, grounded in the DPDP Act gazette.</p>
         </div>
         <div id="report-empty" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-          <div class="text-4xl mb-2">📄</div>
-          Run a scan first — then you can download a board-ready PDF for that vendor.
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📄</div><div class="empty-text">Run a scan first — then download a board-ready PDF for that vendor</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
         <div id="report-card" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-4 hidden">
           <div class="flex items-start justify-between flex-wrap gap-3">
@@ -598,6 +711,134 @@
             </ul>
           </div>
           <div class="text-[11px] text-slate-500 mono">Generated by ReportLab · grounded in DPDP Act 2023 gazette + Rules 2025 (TF-IDF RAG · 49 passages).</div>
+        </div>
+      </section>
+
+      <!-- ====== COMPANY LIBRARY ====== -->
+      <section data-panel="companies" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Company Library</h1>
+            <p class="text-sm text-slate-400">Pre-analysed vendor profiles. Click any company to run a full audit.</p>
+          </div>
+          <button onclick="loadCompanyLibrary()" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">↻ Refresh</button>
+        </div>
+
+        <!-- Category filter buttons -->
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="filterCompanies('all')" class="company-filter-btn active px-3 py-1.5 rounded-full text-xs font-medium bg-slate-700 text-white" data-filter="all">All Companies</button>
+          <button onclick="filterCompanies('strong')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-900/50 text-emerald-300 border border-emerald-700" data-filter="strong">Strong (Secure)</button>
+          <button onclick="filterCompanies('mid')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-amber-900/50 text-amber-300 border border-amber-700" data-filter="mid">Mid-level</button>
+          <button onclick="filterCompanies('breached')" class="company-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700" data-filter="breached">Breached / Weak</button>
+        </div>
+
+        <div id="company-library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="col-span-full text-center py-12 text-slate-500">
+            <div class="text-3xl mb-2">🏢</div>
+            <p>Loading company library...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== AUDIT PIPELINE ====== -->
+      <section data-panel="audit" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Audit Pipeline</h1>
+            <p class="text-sm text-slate-400">Step-by-step security audit with real-time processing logs and intelligence report output.</p>
+          </div>
+        </div>
+
+        <!-- Audit input -->
+        <div class="flex gap-3 items-center flex-wrap">
+          <input id="audit-vendor-input" type="text" placeholder="e.g. yahoo-legacy-services.com, equifax-analytics.com"
+            class="flex-1 min-w-[240px] px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 outline-none" />
+          <button id="run-audit-btn" onclick="runAuditPipeline()" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all shadow-lg shadow-cyan-900/30">
+            Run Full Audit
+          </button>
+        </div>
+
+        <!-- Quick select demo companies -->
+        <div class="flex gap-2 flex-wrap">
+          <span class="text-xs text-slate-500">Quick select:</span>
+          <button onclick="quickAudit('yahoo-legacy-services.com')" class="text-xs px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800 hover:bg-red-900/60">Yahoo (Breached)</button>
+          <button onclick="quickAudit('equifax-analytics.com')" class="text-xs px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800 hover:bg-red-900/60">Equifax (Breached)</button>
+          <button onclick="quickAudit('google-cloud-vendor.com')" class="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60">Google (Strong)</button>
+          <button onclick="quickAudit('logix-crm-india.com')" class="text-xs px-2 py-1 rounded bg-amber-900/30 text-amber-300 border border-amber-800 hover:bg-amber-900/60">Logix CRM (Mid)</button>
+        </div>
+
+        <!-- Pipeline steps -->
+        <div id="audit-pipeline-steps" class="space-y-3">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
+            <div class="text-3xl mb-3">🔬</div>
+            <p class="text-slate-400 text-sm">Enter a vendor domain above and click <strong>Run Full Audit</strong> to see the step-by-step pipeline.</p>
+            <p class="text-slate-500 text-xs mt-2">Each step shows data sources queried, APIs used, and findings discovered.</p>
+          </div>
+        </div>
+
+        <!-- Intelligence Report Output -->
+        <div id="audit-intel-report" class="hidden">
+          <h2 class="text-lg font-bold text-cyan-400 mb-3 flex items-center gap-2">
+            <span>VENDOR RISK INTELLIGENCE REPORT</span>
+            <span class="text-xs font-normal bg-cyan-900/30 text-cyan-300 px-2 py-0.5 rounded">CLASSIFIED</span>
+          </h2>
+          <div id="audit-report-content" class="space-y-4 rounded-2xl border border-cyan-800/50 bg-gradient-to-br from-slate-900 to-slate-950 p-6"></div>
+
+          <!-- Export buttons -->
+          <div class="flex gap-3 mt-4 flex-wrap">
+            <button onclick="exportAuditJSON()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Export JSON</button>
+            <button onclick="exportAuditPDF()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Export PDF</button>
+            <button onclick="exportAuditZIP()" class="px-4 py-2 rounded-lg text-xs font-medium bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-900">Download Audit Pack (ZIP)</button>
+          </div>
+        </div>
+
+        <!-- Processing logs -->
+        <div id="audit-logs" class="hidden">
+          <h3 class="text-sm font-semibold text-slate-400 mb-2">Processing Logs</h3>
+          <div id="audit-log-output" class="bg-black/50 rounded-xl p-4 font-mono text-xs text-green-400 max-h-64 overflow-y-auto border border-slate-800"></div>
+        </div>
+      </section>
+
+      <!-- ====== LIVE ALERTS ====== -->
+      <section data-panel="alerts" class="panel space-y-6">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Live Threat Alerts</h1>
+            <p class="text-sm text-slate-400">Real-time threat detection and alert simulation. Connected via SSE.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="simulateThreatAlert()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 text-red-300 border border-red-700 hover:bg-red-900">Simulate Threat</button>
+            <button onclick="clearAlertFeed()" class="btn-ghost px-3 py-1.5 rounded-lg text-xs">Clear Feed</button>
+          </div>
+        </div>
+
+        <!-- Alert stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-red-400" id="alert-count-critical">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Critical</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-orange-400" id="alert-count-high">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">High</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-amber-400" id="alert-count-medium">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Medium</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-center">
+            <div class="text-2xl font-bold text-emerald-400" id="alert-count-resolved">0</div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500">Resolved</div>
+          </div>
+        </div>
+
+        <!-- Alert feed -->
+        <div id="alert-feed" class="space-y-2 max-h-[500px] overflow-y-auto">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6 text-center">
+            <div class="text-3xl mb-2">🔔</div>
+            <p class="text-slate-400 text-sm">No alerts yet. Alerts appear here in real-time via SSE stream.</p>
+            <button onclick="simulateThreatAlert()" class="mt-3 text-xs text-cyan-400 hover:text-cyan-300">Click to simulate a threat alert</button>
+          </div>
         </div>
       </section>
 
@@ -683,7 +924,11 @@
           <textarea id="bulk-input" rows="4"
             class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mono focus:outline-none focus:border-indigo-400"
             placeholder="paytrust-partner.com&#10;shopquick-vendor.com&#10;healthbuddy-partner.com&#10;databridge-cloud.com"></textarea>
-          <div id="bulk-result" class="text-xs mono text-slate-400"></div>
+          <div class="flex items-center justify-between mt-1">
+            <div id="bulk-counter" class="text-[11px] mono text-slate-500">0 / 25 domains</div>
+            <button id="bulk-sample-btn" class="btn-ghost px-2 py-1 rounded text-[11px]">Load sample batch</button>
+          </div>
+          <div id="bulk-result" class="text-xs mono text-slate-400 mt-2"></div>
         </div>
       </section>
 
@@ -701,6 +946,7 @@
           <div class="text-4xl mb-2">🔀</div>
           Scan the same vendor at least twice — then pick two snapshots to compare.
           <div class="text-xs text-slate-500 mt-2 mono">Tip: re-scan after you complete a playbook row and watch the score climb.</div>
+          <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs mt-3" onclick="loadSampleDiff()">Load sample diff</button>
         </div>
 
         <div id="diff-card" class="hidden space-y-4">
@@ -772,8 +1018,7 @@
           </div>
         </div>
         <div id="playbook-empty" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-          <div class="text-4xl mb-2">📋</div>
-          Scan a vendor first — the playbook builds off the latest scan.
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Scan a vendor first — the playbook builds off the latest scan</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
         <div id="playbook-card" class="hidden space-y-4">
           <div id="playbook-tabs" class="flex gap-2 text-xs">
@@ -803,7 +1048,7 @@
         <div id="contract-benchmarks" class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
           <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Benchmark ledger · click to load a canned DPA, then Analyze</div>
           <div id="contract-benchmark-chips" class="flex flex-wrap gap-2">
-            <span class="text-xs text-slate-600 italic">loading…</span>
+            <span class="text-xs text-slate-600 italic status-loading">Connecting to benchmark ledger…</span>
           </div>
         </div>
 
@@ -814,7 +1059,7 @@
               <input id="contract-file-input" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown" class="hidden" />
             </label>
           </div>
-          <div class="text-[11px] text-slate-500 mt-1">Parsed locally via pypdf — nothing leaves your VPC. Also accepts raw text paste below.</div>
+          <div class="text-[11px] text-slate-500 mt-1">PDF is parsed in-browser (client-side). Raw text is sent to our backend for DPDP analysis. Also accepts raw text paste below.</div>
           <div id="contract-upload-meta" class="text-[11px] mono text-amber-300 mt-2 hidden"></div>
         </div>
 
@@ -906,6 +1151,11 @@
           </div>
         </div>
 
+        <div id="compare-empty" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400 mb-4">
+          <div class="text-4xl mb-2">⚖️</div>
+          Scan at least 2 vendors to compare them.
+          <div class="mt-3"><button class="btn-ghost px-3 py-1.5 rounded-lg text-xs" onclick="loadSampleComparison()">Try sample comparison</button></div>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <select id="compare-vendor-a" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mono"></select>
           <span class="text-slate-500">vs</span>
@@ -927,7 +1177,7 @@
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 overflow-x-auto">
           <div id="dataflow-grid" class="min-w-[720px]">
-            <div class="text-sm text-slate-500 italic">Scan vendors first to populate the grid.</div>
+            <div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-text">Scan vendors first to populate the data flow grid</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
           </div>
         </div>
       </section>
@@ -951,13 +1201,20 @@
           <div id="drawer-cites" class="space-y-2"></div>
         </div>
       </div>
-      <button id="ask-open" class="fixed right-4 bottom-4 btn-primary rounded-full w-12 h-12 shadow-lg z-30 grid place-items-center text-xl" title="Ask DPDP — press '/'">💬</button>
+      <button id="ask-open" class="fixed right-4 bottom-4 btn-primary rounded-full w-12 h-12 shadow-lg z-30 grid place-items-center text-xl" title="Ask a DPDP question">💬</button>
 
       <!-- Generic modal mount (T1 QR / T16 shortcuts / T18 contested / T14 webhook preview) -->
       <div id="vg-modal" class="hidden"></div>
 
     </main>
   </div>
+
+  <!-- =================== FOOTER =================== -->
+  <footer class="border-t border-slate-800 bg-slate-900/60 py-4 px-6 text-center text-[11px] text-slate-500">
+    Built for <span class="text-amber-400 font-semibold">Athernex 2026</span> · Team Rashi Innovators · DSCE × BMSCE
+    <span class="mx-2">·</span>
+    <a href="https://github.com/r88213584-create/vendor" target="_blank" class="text-indigo-400 hover:text-indigo-300">GitHub ↗</a>
+  </footer>
 
   <!-- =================== SCRIPT =================== -->
   <script>
@@ -999,16 +1256,25 @@
     };
 
     async function api(path, opts = {}) {
-      const r = await fetch(API + path, {
-        headers: {'Content-Type': 'application/json'},
-        ...opts,
-      });
-      if (!r.ok) {
-        let body = '';
-        try { body = await r.text(); } catch {}
-        throw new Error(`${path} → HTTP ${r.status}${body ? ': ' + body.slice(0,120) : ''}`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      try {
+        const r = await fetch(API + path, {
+          headers: {'Content-Type': 'application/json'},
+          signal: controller.signal,
+          ...opts,
+        });
+        clearTimeout(timeout);
+        if (!r.ok) {
+          throw new Error(`Request failed (${r.status}). The backend may still be waking up.`);
+        }
+        return r.json();
+      } catch (e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') throw new Error('Request timed out after 60s. Try Demo Mode while the backend wakes up.');
+        if (e.message.includes('Request failed')) throw e;
+        throw new Error('Could not reach the backend. Try Demo Mode while you wait.');
       }
-      return r.json();
     }
 
     const sleep = (ms) => new Promise(res => setTimeout(res, ms));
@@ -1025,6 +1291,8 @@
           { id: 'executive', label: 'Portfolio' },
           { id: 'compare',   label: 'Compare vendors' },
         ] },
+      { id: 'companies', icon: '🏢', label: 'Company Library', sub: 'Strong · Mid · Breached vendors',
+        panels: [{ id: 'companies', label: 'Companies' }] },
       { id: 'scan', icon: '🛡️', label: 'Vendor Scan', sub: 'Trust · findings · DPDP · flows',
         panels: [
           { id: 'overview', label: 'Overview' },
@@ -1033,16 +1301,19 @@
           { id: 'dataflow', label: 'Data Flow' },
           { id: 'graph',    label: 'Graph'    },
         ] },
+      { id: 'audit', icon: '🔬', label: 'Audit Pipeline', sub: 'Step-by-step audit with logs',
+        panels: [{ id: 'audit', label: 'Audit' }] },
       { id: 'agent', icon: '⚡', label: 'Autonomous Agent', sub: '6-step one-click onboarding',
         panels: [{ id: 'agent', label: 'Agent' }] },
       { id: 'contract', icon: '📝', label: 'Contract Intel', sub: 'Layer 5 · DPA gaps + benchmark',
         panels: [{ id: 'contract', label: 'Contract' }] },
       { id: 'backtest', icon: '🧪', label: 'Real Breach Back-test', sub: 'AIIMS · BigBasket · MobiKwik',
         panels: [{ id: 'backtest', label: 'Back-test' }] },
-      { id: 'defense', icon: '🚨', label: 'Live Defense', sub: 'Gateway + canary tripwires',
+      { id: 'defense', icon: '🚨', label: 'Live Defense', sub: 'Gateway + canary + alerts',
         panels: [
           { id: 'gateway', label: 'Gateway' },
           { id: 'canary',  label: 'Canaries' },
+          { id: 'alerts',  label: 'Live Alerts' },
         ] },
       { id: 'remediate', icon: '📋', label: 'Remediation', sub: 'Playbook · diff · audit pack',
         panels: [
@@ -1169,6 +1440,17 @@
         s.style.color = '#fda4af';
         s.style.borderColor = 'rgba(244,63,94,0.4)';
         s.style.background = 'rgba(244,63,94,0.08)';
+        // Resolve remaining chips so they don't stay on "…"
+        ['ml-chip','nuclei-chip','rag-chip','selftest-chip'].forEach(id => {
+          const c = $(id);
+          if (c && c.textContent.includes('…')) {
+            c.textContent = c.textContent.replace('…', 'offline');
+            c.classList.remove('hidden');
+            c.style.color = '#fda4af';
+            c.style.borderColor = 'rgba(244,63,94,0.4)';
+            c.style.background = 'rgba(244,63,94,0.08)';
+          }
+        });
       }
     }
 
@@ -1300,24 +1582,30 @@
         `${r.vendor} · ${r.findings.length} findings · ${new Set(r.findings.map(f=>f.source)).size} sources · ${r.duration_ms}ms · ${r.scanned_at}`;
 
       // Badge in sidebar
-      $('badge-findings').textContent = r.findings.length ? `${r.findings.length}` : '';
-      $('badge-dpdp').textContent = r.dpdp.length ? `${r.dpdp.length}` : '';
+      const bf = $('badge-scan');
+      if (bf) bf.textContent = r.findings.length ? `${r.findings.length} findings` : '';
 
       // Gateway vendor badge
       $('gw-vendor-badge').textContent = r.vendor;
 
       // Report panel
-      $('report-empty').classList.add('hidden');
-      $('report-card').classList.remove('hidden');
-      $('report-vendor').textContent = r.vendor;
-      $('report-dl').href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
+      const repEmpty = $('report-empty');
+      const repCard = $('report-card');
+      if (repEmpty) repEmpty.classList.add('hidden');
+      if (repCard) repCard.classList.remove('hidden');
+      const repVendor = $('report-vendor');
+      if (repVendor) repVendor.textContent = r.vendor;
+      const repDl = $('report-dl');
+      if (repDl) repDl.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
       const auditBtn = $('audit-dl');
       if (auditBtn) auditBtn.href = `${API}/audit/${encodeURIComponent(r.vendor)}.zip`;
 
       // DPDP pdf link
       const pdfBtn = $('dpdp-pdf');
-      pdfBtn.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
-      pdfBtn.classList.remove('pointer-events-none', 'opacity-40');
+      if (pdfBtn) {
+        pdfBtn.href = `${API}/report/${encodeURIComponent(r.vendor)}.pdf`;
+        pdfBtn.classList.remove('pointer-events-none', 'opacity-40');
+      }
     }
 
     // --- findings ---
@@ -1627,9 +1915,11 @@ Cite: ${m.rag_citation || ''}`;
     // =========================================================================
     function startSSE() {
       const chip = $('sse-chip');
+      let connected = false;
       try {
         const es = new EventSource(`${API}/alerts/stream`);
         es.onopen = () => {
+          connected = true;
           chip.textContent = 'stream: live';
           chip.style.color = '#6ee7b7';
           chip.style.borderColor = 'rgba(16,185,129,0.4)';
@@ -1647,8 +1937,21 @@ Cite: ${m.rag_citation || ''}`;
             if (obj && obj.severity && obj.title) appendAlert(obj);
           } catch {}
         };
+        // After 15s if not connected, mark offline
+        setTimeout(() => {
+          if (!connected) {
+            es.close();
+            chip.textContent = 'stream: offline';
+            chip.style.color = '#fda4af';
+            chip.style.borderColor = 'rgba(244,63,94,0.4)';
+            chip.style.background = 'rgba(244,63,94,0.08)';
+          }
+        }, 15000);
       } catch {
-        chip.textContent = 'stream: unavailable';
+        chip.textContent = 'stream: offline';
+        chip.style.color = '#fda4af';
+        chip.style.borderColor = 'rgba(244,63,94,0.4)';
+        chip.style.background = 'rgba(244,63,94,0.08)';
       }
     }
 
@@ -1720,6 +2023,8 @@ Cite: ${m.rag_citation || ''}`;
     async function refreshGraph() {
       let g = { nodes: [], edges: [] };
       try { g = await api('/graph'); } catch { return; }
+      const ph = $('graph-placeholder');
+      if (ph && g.nodes.length > 0) ph.classList.add('hidden');
       const elements = [
         ...g.nodes.map(n => ({
           data: {
@@ -1849,6 +2154,7 @@ Cite: ${m.rag_citation || ''}`;
     }
 
     async function refreshPortfolio() {
+      if (demoModeActive) return;
       try {
         const p = await api('/portfolio');
         animateCount($('kpi-vendors'), p.vendors_tracked);
@@ -1976,6 +2282,7 @@ Cite: ${m.rag_citation || ''}`;
     let playbookFilter = '7';
 
     async function refreshPlaybook() {
+      if (demoModeActive) return;
       const vendor = (lastScan && lastScan.vendor) || $('vendor-input').value.trim().toLowerCase();
       if (!vendor) return;
       try {
@@ -2055,6 +2362,7 @@ This addendum governs the processing of personal data.
 
     // v3.1: Benchmark Evidence Ledger — load canned DPAs into the analyzer.
     async function refreshBenchmarks() {
+      if (demoModeActive) return;
       const box = $('contract-benchmark-chips');
       if (!box) return;
       try {
@@ -2082,6 +2390,7 @@ This addendum governs the processing of personal data.
 
     // v3.2: Compliance Diff panel — scan-over-time delta UI.
     async function refreshDiffPanel() {
+      if (demoModeActive) return;
       const vendor = (lastScan && lastScan.vendor) || $('vendor-input').value.trim().toLowerCase();
       const empty = $('diff-empty');
       const card = $('diff-card');
@@ -2242,6 +2551,7 @@ This addendum governs the processing of personal data.
     // Data Flow Map (v3.0)
     // =========================================================================
     async function refreshDataflow() {
+      if (demoModeActive) return;
       try {
         const g = await api('/graph');
         const vendors = (g.nodes || []).filter(n => n.kind === 'vendor');
@@ -2330,97 +2640,698 @@ This addendum governs the processing of personal data.
     }
 
     // =========================================================================
-    // Demo mode (v3.0 — 7-step narrated pitch)
+    // Demo mode (v4 — instant pre-baked data, no API calls)
     // =========================================================================
     let demoRunning = false;
+    let demoModeActive = false;
 
-    async function runDemo() {
-      if (demoRunning) return;
+    const DEMO_DATA = {
+      vendor: 'analytics-vendor.io',
+      trust: { score: 34, label: 'BLOCK', color: '#ef4444', band: 'block' },
+      duration_ms: 1847,
+      scanned_at: new Date().toISOString(),
+      ai_summary: `analytics-vendor.io presents a critical risk profile with a trust score of 34/100 (BLOCK band). Our OSINT sweep found 5 actionable findings across Shodan, crt.sh, and CVE databases.\n\nThe vendor exposes an S3 bucket containing PII data (severity: critical), still runs TLS 1.0 on its API gateway (critical), and is vulnerable to CVE-2023-44487 (HTTP/2 Rapid Reset). These findings map directly to DPDP Act §8(5) (reasonable security safeguards), §8(1) (purpose limitation), §8(6) (breach notification), and §9 (cross-border transfer restrictions).\n\nTotal DPDP exposure stands at ₹6.1Cr. Immediate action required: block vendor access, mandate TLS 1.2+, and invoke contractual audit rights under your DPA.`,
+      total_dpdp_exposure_inr: 61000000,
+      findings: [
+        { id: 'F-001', severity: 'critical', source: 'shodan', title: 'Exposed S3 bucket with PII', description: 'Open S3 bucket s3://analytics-vendor-prod contains 2.3M user records with names, emails, and phone numbers.', evidence: { bucket: 's3://analytics-vendor-prod', records: 2300000, pii_types: ['name','email','phone'] } },
+        { id: 'F-002', severity: 'critical', source: 'tls', title: 'TLS 1.0 still active on API gateway', description: 'api.analytics-vendor.io accepts TLS 1.0 connections, deprecated since 2020.', evidence: { host: 'api.analytics-vendor.io', protocol: 'TLSv1.0', cipher: 'RC4-SHA' } },
+        { id: 'F-003', severity: 'high', source: 'crt.sh', title: 'CVE-2023-44487 (HTTP/2 Rapid Reset)', description: 'The vendor API server is vulnerable to HTTP/2 Rapid Reset denial-of-service attack.', evidence: { cve: 'CVE-2023-44487', cvss: 7.5, affected: 'nginx/1.18.0' } },
+        { id: 'F-004', severity: 'high', source: 'hibp', title: 'Historical breach: 1.2M credentials leaked (2023)', description: 'HaveIBeenPwned reports a credential dump from analytics-vendor.io affecting 1.2M accounts.', evidence: { breach_date: '2023-08-15', accounts: 1200000, data_classes: ['email','password_hash'] } },
+        { id: 'F-005', severity: 'medium', source: 'dns', title: 'SPF record misconfigured — potential email spoofing', description: 'DNS SPF record uses ~all (softfail) instead of -all (hardfail), allowing spoofed emails.', evidence: { record: 'v=spf1 include:_spf.google.com ~all', recommendation: 'Change ~all to -all' } },
+      ],
+      dpdp: [
+        { clause: '§5', obligation: 'Notice and consent for data collection', max_penalty_inr: 10000000, rag_quote: 'Every Data Fiduciary shall give notice to the Data Principal containing a description of personal data and the purpose of processing.', rag_citation: 'DPDP Act 2023, §5(1)', immediate_action: 'Add consent notice to data collection endpoints', liability_note: 'Up to ₹50Cr for significant non-compliance', count: 1 },
+        { clause: '§8(1)', obligation: 'Purpose limitation — process only for stated purpose', max_penalty_inr: 18000000, rag_quote: 'A Data Fiduciary shall process personal data only for the purpose for which the consent of the Data Principal was given.', rag_citation: 'DPDP Act 2023, §8(1)', immediate_action: 'Audit vendor data flows for purpose creep', liability_note: 'Penalty up to ₹50Cr', count: 1 },
+        { clause: '§8(6)', obligation: 'Breach notification within 72 hours', max_penalty_inr: 25000000, rag_quote: 'In the event of a personal data breach, the Data Fiduciary shall notify the Board and each affected Data Principal.', rag_citation: 'DPDP Act 2023, §8(6)', immediate_action: 'Verify vendor breach notification SLA in DPA', liability_note: 'Penalty up to ₹200Cr for failure to notify', count: 2 },
+        { clause: '§9', obligation: 'Cross-border transfer restrictions', max_penalty_inr: 8000000, rag_quote: 'The Central Government may restrict the transfer of personal data to such country or territory outside India as it may notify.', rag_citation: 'DPDP Act 2023, §9(1)', immediate_action: 'Confirm data residency or obtain govt approval', liability_note: 'Transfer to restricted territory = penalty up to ₹250Cr', count: 1 },
+      ],
+      playbook: {
+        vendor: 'analytics-vendor.io',
+        total_savings_inr: 61000000,
+        items: [
+          { task: 'Revoke S3 bucket public access and rotate all IAM keys', clause: '§8(5)', owner: 'Cloud Ops', sla_days: 1, savings_inr_if_addressed: 25000000, obligation: 'Implement reasonable security safeguards', rag_quote: 'The Data Fiduciary shall implement appropriate technical and organisational measures.', rag_citation: 'DPDP Act 2023, §8(5)', crosswalk: { iso27001: ['A.8.3'], soc2: ['CC6.1'], nist_csf: ['PR.DS-1'] } },
+          { task: 'Enforce TLS 1.2+ on all vendor API endpoints', clause: '§8(5)', owner: 'Security', sla_days: 3, savings_inr_if_addressed: 18000000, obligation: 'Encryption of data in transit', rag_quote: '', rag_citation: '', crosswalk: { iso27001: ['A.10.1'], soc2: ['CC6.7'], nist_csf: ['PR.DS-2'] } },
+          { task: 'Patch CVE-2023-44487 — upgrade nginx to 1.25.3+', clause: '§8(5)', owner: 'DevOps', sla_days: 7, savings_inr_if_addressed: 10000000, obligation: 'Vulnerability management', rag_quote: '', rag_citation: '', crosswalk: { iso27001: ['A.12.6'], soc2: ['CC7.1'], nist_csf: ['DE.CM-8'] } },
+          { task: 'Add breach notification SLA clause (72h) to vendor DPA', clause: '§8(6)', owner: 'Legal', sla_days: 14, savings_inr_if_addressed: 8000000, obligation: 'Contractual breach notification obligation', rag_quote: '', rag_citation: '', crosswalk: { iso27001: ['A.16.1'], soc2: ['CC7.3'], nist_csf: ['RS.CO-2'] } },
+        ],
+      },
+      gateway: { active: true, attacks_blocked: 3, token_id: 'gw-demo-001' },
+      backtest: [
+        { id: 'aiims-2022', label: 'AIIMS Delhi 2022', incident_date: '2022-11-23', trust_score: 28, band: 'block', affected_records_millions: 40, exposure_inr: 500000000, would_have_been_blocked: true, one_liner: 'Ransomware attack via billing vendor compromised 40M patient records', vector: 'Third-party billing software with hardcoded credentials', findings: [{ source: 'shodan', severity: 'critical', title: 'Exposed RDP on billing vendor', clause: '§8(5)', detail: 'Open RDP port with default credentials on vendor subnet', rag_quote: 'The Data Fiduciary shall implement appropriate technical and organisational measures.' }], outcome_narrative: 'VendorGuard would have flagged the exposed RDP port and hardcoded credentials during onboarding, generating a BLOCK verdict (score 28). The billing vendor would have been quarantined before the ransomware deployment.' },
+        { id: 'bigbasket-2020', label: 'BigBasket 2020', incident_date: '2020-10-30', trust_score: 31, band: 'block', affected_records_millions: 20, exposure_inr: 150000000, would_have_been_blocked: true, one_liner: 'Analytics vendor database leaked 20M user records on dark web', vector: 'Unpatched MongoDB with public exposure', findings: [{ source: 'shodan', severity: 'critical', title: 'Public MongoDB without auth', clause: '§8(5)', detail: 'MongoDB instance on port 27017 with no authentication', rag_quote: '' }], outcome_narrative: 'VendorGuard OSINT sweep would have detected the publicly exposed MongoDB instance. Trust score 31 (BLOCK) would prevent vendor onboarding.' },
+        { id: 'mobikwik-2021', label: 'MobiKwik 2021', incident_date: '2021-03-01', trust_score: 22, band: 'block', affected_records_millions: 99, exposure_inr: 800000000, would_have_been_blocked: true, one_liner: 'KYC processor exposed 99M records including Aadhaar, PAN, phone', vector: 'Misconfigured API endpoint in KYC vendor', findings: [{ source: 'nuclei', severity: 'critical', title: 'Unauthenticated KYC API endpoint', clause: '§8(1)', detail: 'KYC API returns full records without authentication token', rag_quote: '' }], outcome_narrative: 'VendorGuard nuclei scan would have found the unauthenticated KYC API. Score 22 (BLOCK) would trigger immediate quarantine and DPDP §8(1) violation flagging.' },
+      ],
+      contract: {
+        coverage_pct: 38,
+        red_count: 2, amber_count: 3, green_count: 1,
+        potential_penalty_inr: 45000000,
+        summary: 'This DPA has significant gaps. Only 38% of required DPDP clauses are adequately addressed. 2 critical gaps (red) require immediate contractual amendment before vendor access can be granted.',
+        gaps: [
+          { section: '§8(5)', label: 'Reasonable security safeguards', status: 'red', obligation: 'Vendor must implement appropriate technical and organisational measures', penalty_inr: 25000000, evidence: ['"best efforts to secure data"'], red_flags: ['"best efforts" is legally insufficient — DPDP requires "reasonable" standard'], recommended_rewrite: 'Vendor shall implement reasonable security safeguards as may be prescribed, including but not limited to encryption at rest (AES-256) and in transit (TLS 1.2+), access controls, and annual penetration testing.', rag_quote: 'The Data Fiduciary shall protect personal data in its possession by taking reasonable security safeguards.', rag_citation: 'DPDP Act 2023, §8(5)', crosswalk: { iso27001: ['A.8.3'], soc2: ['CC6.1'], nist_csf: ['PR.DS-1'] } },
+          { section: '§8(6)', label: 'Breach notification', status: 'red', obligation: 'Notify Board and Data Principals without delay', penalty_inr: 20000000, evidence: ['"as soon as practicable"'], red_flags: ['"as soon as practicable" lacks the 72-hour specificity required'], recommended_rewrite: 'Vendor shall notify Controller within 24 hours of becoming aware of any personal data breach, enabling Controller to comply with the 72-hour notification requirement under §8(6).', rag_quote: 'In the event of a personal data breach, the Data Fiduciary shall notify the Board and each affected Data Principal.', rag_citation: 'DPDP Act 2023, §8(6)', crosswalk: { iso27001: ['A.16.1'], soc2: ['CC7.3'], nist_csf: ['RS.CO-2'] } },
+          { section: '§9', label: 'Cross-border transfers', status: 'amber', obligation: 'Data must stay in India unless approved territory', penalty_inr: 8000000, evidence: ['"United States data centers for redundancy"'], red_flags: [], recommended_rewrite: 'Vendor shall process and store all personal data within India. Any cross-border transfer requires prior written consent and compliance with §9 restrictions.', rag_quote: '', rag_citation: '', crosswalk: { iso27001: ['A.11.2'], soc2: ['CC6.6'], nist_csf: ['PR.DS-5'] } },
+          { section: '§13', label: 'Data subject rights', status: 'amber', obligation: 'Facilitate erasure and correction requests at no cost', penalty_inr: 5000000, evidence: ['"at additional cost to Controller"'], red_flags: [], recommended_rewrite: 'Vendor shall facilitate all Data Principal rights under §§11-14 at no additional cost to Controller.', rag_quote: '', rag_citation: '', crosswalk: {} },
+          { section: '§8(7)', label: 'Data retention and deletion', status: 'amber', obligation: 'Delete data when purpose is served', penalty_inr: 7000000, evidence: ['"retains data indefinitely"'], red_flags: [], recommended_rewrite: 'Vendor shall delete all personal data within 30 days of purpose completion or contract termination, whichever is earlier.', rag_quote: '', rag_citation: '', crosswalk: {} },
+          { section: '§5', label: 'Notice and consent', status: 'green', obligation: 'Provide clear notice before collecting data', penalty_inr: 0, evidence: [], red_flags: [], recommended_rewrite: '', rag_quote: '', rag_citation: '', crosswalk: {} },
+        ],
+      },
+      executive: {
+        vendors_tracked: 3, avg_trust_score: 42, total_exposure_inr: 61000000,
+        attacks_blocked: 3, savings_inr: 61000000,
+        bands: { safe: 0, watch: 0, block: 3 },
+        leaderboard: [
+          { vendor: 'analytics-vendor.io', score: 34, band: 'block', exposure_inr: 61000000 },
+          { vendor: 'payment-gateway.co', score: 45, band: 'block', exposure_inr: 32000000 },
+          { vendor: 'cloud-backup.net', score: 38, band: 'block', exposure_inr: 18000000 },
+        ],
+        top_clauses: [
+          { clause: '§8(5)', vendors_affected: 3 },
+          { clause: '§8(6)', vendors_affected: 2 },
+          { clause: '§9', vendors_affected: 2 },
+          { clause: '§8(1)', vendors_affected: 1 },
+        ],
+      },
+      graph_nodes: [
+        { id: 'your-company', label: 'Your Company', kind: 'company', band: 'safe', score: null },
+        { id: 'analytics-vendor-io', label: 'analytics-vendor.io', kind: 'vendor', band: 'block', score: 34 },
+        { id: 'payment-gateway-co', label: 'payment-gateway.co', kind: 'vendor', band: 'block', score: 45 },
+        { id: 'cloud-backup-net', label: 'cloud-backup.net', kind: 'vendor', band: 'block', score: 38 },
+      ],
+      graph_edges: [
+        { source: 'your-company', target: 'analytics-vendor-io', severity: 'critical', exposure_inr: 61000000 },
+        { source: 'your-company', target: 'payment-gateway-co', severity: 'high', exposure_inr: 32000000 },
+        { source: 'your-company', target: 'cloud-backup-net', severity: 'high', exposure_inr: 18000000 },
+      ],
+    };
+
+    // Canned RAG answers for offline mode
+    const CANNED_RAG = {
+      'What is §8(5)?': { answer: 'Section 8(5) of the DPDP Act 2023 requires every Data Fiduciary to protect personal data in its possession or under its control by taking reasonable security safeguards to prevent personal data breach. This is the cornerstone obligation for vendor risk management.', citations: [{ section: '§8(5)', page: 12, excerpt: 'The Data Fiduciary shall protect personal data in its possession or under its control by taking reasonable security safeguards to prevent personal data breach.' }] },
+      "Children's data rules": { answer: 'Under §9 of the DPDP Act 2023, processing children\'s personal data requires verifiable consent of the parent or lawful guardian. Tracking, behavioural monitoring, and targeted advertising directed at children is prohibited. The age threshold is 18 years unless notified otherwise.', citations: [{ section: '§9', page: 14, excerpt: 'Before processing any personal data of a child, the Data Fiduciary shall obtain verifiable consent of the parent or lawful guardian.' }] },
+      'Cross-border transfer rules': { answer: 'Section 16(1) empowers the Central Government to restrict transfer of personal data to any country or territory outside India by notification. Until such notification, transfers are permitted subject to the Data Fiduciary\'s obligations under the Act.', citations: [{ section: '§16(1)', page: 18, excerpt: 'The Central Government may, by notification, restrict the transfer of personal data by a Data Fiduciary for processing to such country or territory outside India.' }] },
+      'Breach notification timeline': { answer: 'Under §8(6), in the event of a personal data breach, the Data Fiduciary must notify the Data Protection Board and each affected Data Principal in the prescribed manner and timeframe. The CERT-In 2022 directive additionally requires reporting cyber incidents within 6 hours.', citations: [{ section: '§8(6)', page: 13, excerpt: 'In the event of a personal data breach, the Data Fiduciary shall give the Board and each affected Data Principal, intimation of such breach in such form and manner as may be prescribed.' }] },
+    };
+
+    function activateDemoMode() {
+      if (demoModeActive) return;
+      demoModeActive = true;
       demoRunning = true;
-      const badge = $('demo-badge');
-      badge.classList.remove('hidden');
-      try {
-        // 1. Executive board — the CISO one-screen
-        navTo('executive');
-        $('bulk-input').value = 'paytrust-partner.com\nshopquick-vendor.com\nhealthbuddy-partner.com';
-        await sleep(600);
-        await runBulkScan();
-        await sleep(1800);
 
-        // 2. Drill into paytrust via Overview
-        $('vendor-input').value = 'paytrust-partner.com';
-        navTo('overview');
-        await sleep(400);
-        await doScan();
-        await sleep(1800);
+      // Show banner
+      $('demo-banner').classList.remove('hidden');
+      $('demo-badge').classList.remove('hidden');
+      $('demo-badge').textContent = 'DEMO MODE';
 
-        // 3. DPDP Exposure — highlight §8(5)
-        navTo('dpdp');
-        await sleep(800);
-        const row = $$('#dpdp-list details').find(d => (d.dataset.clause || '').includes('8(5)'));
-        if (row) {
-          row.open = true;
-          row.classList.add('row-pulse');
-          setTimeout(() => row.classList.remove('row-pulse'), 2200);
-        }
-        await sleep(2800);
+      const d = DEMO_DATA;
 
-        // 4. Monday Playbook — remediation checklist
-        navTo('playbook');
-        await sleep(1800);
+      // Set vendor input
+      $('vendor-input').value = d.vendor;
 
-        // 5. Contract Intelligence — fire the Benchmark "weak" chip so judges
-        //    see the reproducible rule engine in action. Falls back to SAMPLE_DPA.
-        navTo('contract');
-        await sleep(500);
-        try { await refreshBenchmarks(); } catch {}
-        const weakBtn = document.querySelector('#contract-benchmark-chips button[data-bench="weak-dpa"]');
-        if (weakBtn) { weakBtn.click(); } else {
-          $('contract-input').value = SAMPLE_DPA;
-          await analyzeContract();
-        }
-        await sleep(3000);
+      // Build a fake scan result
+      lastScan = {
+        vendor: d.vendor,
+        trust: d.trust,
+        findings: d.findings,
+        dpdp: d.dpdp,
+        total_dpdp_exposure_inr: d.total_dpdp_exposure_inr,
+        ai_summary: d.ai_summary,
+        duration_ms: d.duration_ms,
+        scanned_at: d.scanned_at,
+      };
 
-        // 6. Gateway — activate + simulate breach
-        navTo('gateway');
-        await sleep(700);
-        await activateGateway();
-        await sleep(900);
-        await simulateAttack();
-        await sleep(4500);
+      // Render overview
+      renderOverview(lastScan);
+      renderFindings(lastScan.findings);
+      renderDpdp(lastScan.dpdp, lastScan.total_dpdp_exposure_inr);
+      pushVendorHistory(d.vendor);
 
-        // 7. Compliance Diff — show scan-over-time currency (v3.2)
-        try {
-          await fetch(`${API}/scan`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor:'paytrust-partner.com'}) });
-          navTo('diff');
-          await sleep(1200);
-          await computeDiff();
-        } catch {}
-        await sleep(2500);
+      // Gateway
+      setGatewayActiveChip(true);
+      $('gw-vendor-badge').textContent = d.vendor;
+      $('gw-status').innerHTML = '<span class="text-emerald-300">● active</span> token=<span class="text-amber-300">gw-demo-001</span> · 3 attacks blocked';
 
-        // 8. Ask DPDP drawer — live RAG citation
-        toggleDrawer(true);
-        await sleep(400);
-        await drawerAsk('What are the penalties under Section 8(5)?');
-        await sleep(3000);
-        toggleDrawer(false);
+      // Playbook
+      currentPlaybook = d.playbook;
+      $('playbook-empty').classList.add('hidden');
+      $('playbook-card').classList.remove('hidden');
+      $('playbook-savings').textContent = fmtINR(d.playbook.total_savings_inr);
+      renderPlaybookRows();
 
-        // Land on Executive Board for the ₹ savings ticker reveal
-        navTo('executive');
-        await refreshPortfolio();
-        $('gw-status').innerHTML += ` <span class="text-amber-300">· demo complete · try it yourself</span>`;
-      } finally {
-        badge.classList.add('hidden');
-        demoRunning = false;
+      // Breach clock — 2h ago
+      breachStartedAt = Date.now() - (2 * 3600 * 1000);
+      startBreachCountdown(d.vendor);
+
+      // Backtest — hardcoded
+      renderStaticBacktest();
+
+      // Graph
+      renderStaticGraph(d.graph_nodes, d.graph_edges);
+
+      // Executive
+      renderDemoExecutive(d.executive);
+
+      // Contract
+      renderDemoContract(d.contract);
+
+      // Report card
+      $('report-empty').classList.add('hidden');
+      $('report-card').classList.remove('hidden');
+      $('report-vendor').textContent = d.vendor;
+
+      // Status chips
+      $('kpi-savings-chip').textContent = '₹ saved: ' + fmtINR(d.executive.savings_inr);
+      $('kpi-savings-chip').classList.remove('hidden');
+      $('kpi-blocks-chip').textContent = 'blocks: ' + d.gateway.attacks_blocked;
+      $('kpi-blocks-chip').classList.remove('hidden');
+
+      // Navigate to overview
+      navTo('overview');
+
+      demoRunning = false;
+    }
+
+    function exitDemoMode() {
+      demoModeActive = false;
+      demoRunning = false;
+      $('demo-banner').classList.add('hidden');
+      $('demo-badge').classList.add('hidden');
+
+      // Reset state
+      lastScan = null;
+      currentPlaybook = null;
+      $('vendor-input').value = '';
+      $('score-num').textContent = '—';
+      $('score-band').textContent = 'awaiting scan';
+      $('score-band').style.color = '#94a3b8';
+      $('score-band').style.borderColor = '#334155';
+      $('score-band').style.backgroundColor = 'transparent';
+      const arc = $('score-arc');
+      arc.setAttribute('stroke-dashoffset', '339.29');
+      arc.setAttribute('stroke', '#64748b');
+      $('stat-findings').textContent = '–';
+      $('stat-sources').textContent = '–';
+      $('stat-ms').textContent = '–';
+      $('ai-summary').textContent = 'Run a scan to generate a board-ready risk summary.';
+      $('exposure-total').textContent = '—';
+      $('scan-meta').textContent = '';
+      $('findings-list').innerHTML = '<div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">🔍</div><div class="empty-text">Run a scan above to populate OSINT findings</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>';
+      $('dpdp-list').innerHTML = '<div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Run a scan above to see DPDP clause mappings with ₹ liability</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>';
+      // Restore graph placeholder
+      const gph = $('graph-placeholder');
+      if (gph) gph.classList.remove('hidden');
+      if (cy) { cy.destroy(); cy = null; }
+      $('dpdp-total').textContent = '₹0';
+      setGatewayActiveChip(false);
+      $('gw-vendor-badge').textContent = '—';
+      $('gw-status').innerHTML = '';
+      $('playbook-empty').classList.remove('hidden');
+      $('playbook-card').classList.add('hidden');
+      stopBreachCountdown();
+      $('report-empty').classList.remove('hidden');
+      $('report-card').classList.add('hidden');
+      navTo('executive');
+    }
+
+    function renderDemoExecutive(e) {
+      animateCount($('kpi-vendors'), e.vendors_tracked);
+      $('kpi-avg').textContent = e.avg_trust_score;
+      animateCount($('kpi-total-exposure'), e.total_exposure_inr, '', '', true);
+      animateCount($('kpi-attacks'), e.attacks_blocked);
+      animateCount($('kpi-savings'), e.savings_inr, '', '', true);
+
+      const bands = e.bands;
+      const total = Math.max((bands.safe||0) + (bands.watch||0) + (bands.block||0), 1);
+      const bcfg = [
+        {k:'safe', c:'#10b981', label:'Safe ≥80'},
+        {k:'watch', c:'#f59e0b', label:'Watch 50–79'},
+        {k:'block', c:'#ef4444', label:'Block <50'},
+      ];
+      $('band-bars').innerHTML = bcfg.map(b => {
+        const n = bands[b.k] || 0;
+        const pct = Math.round((n / total) * 100);
+        return `<div><div class="flex items-center justify-between text-xs"><span style="color:${b.c}">● ${b.label}</span><span class="mono">${n}</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden mt-1"><div class="h-full" style="width:${pct}%; background:${b.c};"></div></div></div>`;
+      }).join('');
+
+      $('leaderboard-rows').innerHTML = e.leaderboard.map(v => {
+        const col = v.band === 'safe' ? '#10b981' : v.band === 'block' ? '#ef4444' : '#f59e0b';
+        return `<tr class="align-middle"><td class="py-2 mono text-slate-200">${esc(v.vendor)}</td><td class="py-2 mono" style="color:${col}">${v.score}</td><td class="py-2 text-xs"><span class="chip mono" style="color:${col};border-color:${col}55;background:${col}18">${esc(v.band)}</span></td><td class="py-2 mono text-rose-300 text-right">${fmtINR(v.exposure_inr)}</td><td class="py-2 text-right"><button class="btn-ghost px-2 py-0.5 rounded text-[11px]" data-lb="${esc(v.vendor)}">open →</button></td></tr>`;
+      }).join('');
+
+      $('top-clauses').innerHTML = e.top_clauses.map(c => {
+        const pct = Math.round((c.vendors_affected / 3) * 100);
+        return `<div><div class="flex items-center justify-between text-xs"><span class="mono text-amber-300">${esc(c.clause)}</span><span class="mono text-slate-400">${c.vendors_affected} vendor${c.vendors_affected===1?'':'s'}</span></div><div class="h-2 rounded bg-slate-800 overflow-hidden mt-1"><div class="h-full" style="width:${pct}%; background:#f59e0b;"></div></div></div>`;
+      }).join('');
+    }
+
+    function renderDemoContract(c) {
+      $('contract-summary').classList.remove('hidden');
+      $('contract-coverage').textContent = c.coverage_pct + '%';
+      $('contract-coverage').style.color = '#ef4444';
+      $('contract-red').textContent = c.red_count;
+      $('contract-amber').textContent = c.amber_count;
+      $('contract-green').textContent = c.green_count;
+      $('contract-penalty').textContent = fmtINR(c.potential_penalty_inr);
+      $('contract-narrative').textContent = c.summary;
+      const gaps = c.gaps;
+      $('contract-gaps').innerHTML = gaps.map(g => {
+        const col = g.status === 'green' ? '#10b981' : g.status === 'amber' ? '#f59e0b' : '#ef4444';
+        return `<div class="rounded-xl border p-4" style="border-color:${col}55; background:${col}0d"><div class="flex items-start justify-between gap-3 flex-wrap"><div><span class="chip mono" style="color:${col};border-color:${col}55;background:${col}18">${g.status.toUpperCase()}</span><span class="mono text-amber-300 ml-2">${esc(g.section)}</span><span class="text-sm ml-2">${esc(g.label)}</span></div><div class="text-right"><div class="text-[10px] uppercase tracking-wider text-rose-300">max penalty</div><div class="text-sm mono text-rose-300">${fmtINR(g.penalty_inr)}</div></div></div>${g.obligation ? `<div class="mt-2 text-xs text-slate-400">${esc(g.obligation)}</div>` : ''}</div>`;
+      }).join('');
+    }
+
+    function renderStaticBacktest() {
+      const cases = DEMO_DATA.backtest;
+      const el = $('backtest-cases');
+      el.innerHTML = cases.map(c => `
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+          <div class="flex items-center justify-between">
+            <div class="text-sm font-semibold">${esc(c.label)}</div>
+            <span class="badge-sev sev-critical">${esc(c.band)}</span>
+          </div>
+          <div class="mt-2 text-xs text-slate-400">${esc(c.one_liner)}</div>
+          <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div><div class="text-[10px] text-slate-500 uppercase">Trust</div><div class="mono font-bold text-rose-300">${c.trust_score}/100</div></div>
+            <div><div class="text-[10px] text-slate-500 uppercase">Records</div><div class="mono font-bold text-indigo-300">${c.affected_records_millions}M</div></div>
+            <div><div class="text-[10px] text-slate-500 uppercase">Would block</div><div class="mono font-bold text-emerald-300">YES</div></div>
+          </div>
+          <div class="mt-3 text-[11px] text-slate-500 mono">${esc(c.incident_date)} · ${fmtINR(c.exposure_inr)}</div>
+          <details class="mt-3">
+            <summary class="text-[11px] text-indigo-300 cursor-pointer"><span class="chev">▶</span> Evidence trace</summary>
+            <div class="mt-2 text-xs text-slate-300 space-y-2">
+              <div class="text-[10px] uppercase tracking-wider text-slate-400">What VendorGuard would have flagged</div>
+              ${c.findings.map(f => `<div class="rounded-lg border border-slate-800 bg-slate-950/60 p-2"><span class="badge-sev sev-${esc(f.severity)}">${esc(f.severity)}</span> <span class="mono text-amber-300 ml-1">${esc(f.clause)}</span> <span class="ml-1">${esc(f.title)}</span><div class="text-slate-400 mt-1">${esc(f.detail)}</div></div>`).join('')}
+              <div class="text-sm text-emerald-300 bg-emerald-950/30 border border-emerald-900/40 rounded-xl p-3 mt-2">${esc(c.outcome_narrative)}</div>
+            </div>
+          </details>
+        </div>
+      `).join('');
+    }
+
+    function renderStaticGraph(nodes, edges) {
+      const ph = $('graph-placeholder');
+      if (ph) ph.classList.add('hidden');
+      const elements = [
+        ...nodes.map(n => ({ data: { id: n.id, label: n.kind === 'company' ? n.label : `${n.label}\n${n.score || ''}`, kind: n.kind, band: n.band, score: n.score } })),
+        ...edges.map(e => ({ data: { id: `${e.source}->${e.target}`, source: e.source, target: e.target, severity: e.severity, exposure: e.exposure_inr } })),
+      ];
+      if (cy) {
+        cy.elements().remove();
+        cy.add(elements);
+        cy.layout({ name: 'concentric', concentric: (n) => n.data('kind') === 'company' ? 10 : 1, levelWidth: () => 1, spacingFactor: 1.2 }).run();
+      } else {
+        cy = cytoscape({
+          container: $('graph'),
+          elements,
+          layout: { name: 'concentric', concentric: (n) => n.data('kind') === 'company' ? 10 : 1, levelWidth: () => 1, spacingFactor: 1.2 },
+          style: [
+            { selector: 'node', style: { 'label': 'data(label)', 'text-wrap': 'wrap', 'text-valign': 'center', 'text-halign': 'center', 'color': '#f1f5f9', 'font-size': 11, 'font-family': 'Space Mono, monospace', 'width': 70, 'height': 70, 'background-color': '#1e293b', 'border-width': 2, 'border-color': '#334155' }},
+            { selector: 'node[kind = "company"]', style: { 'background-color': '#f59e0b', 'color': '#0f172a', 'width': 90, 'height': 90, 'border-color': '#fbbf24', 'font-weight': 700 }},
+            { selector: 'node[band = "safe"]', style: { 'border-color': '#10b981' }},
+            { selector: 'node[band = "watch"]', style: { 'border-color': '#f59e0b' }},
+            { selector: 'node[band = "block"]', style: { 'border-color': '#ef4444' }},
+            { selector: 'edge', style: { 'width': 2.5, 'line-color': '#475569', 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'target-arrow-color': '#475569' }},
+            { selector: 'edge[severity = "critical"]', style: { 'line-color': '#ef4444', 'target-arrow-color': '#ef4444', 'width': 3.5 }},
+            { selector: 'edge[severity = "high"]', style: { 'line-color': '#f59e0b', 'target-arrow-color': '#f59e0b', 'width': 3 }},
+          ],
+        });
       }
+    }
+
+    // =========================================================================
+    // Health check — fire on page load
+    // =========================================================================
+    let backendReady = false;
+
+    async function healthCheck() {
+      const banner = $('health-banner');
+      const text = $('health-banner-text');
+      banner.classList.remove('hidden');
+      banner.className = 'health-banner';
+      text.textContent = '⏳ Backend is waking up (Render free tier — ~20s). Demo Mode is available now.';
+
+      const start = Date.now();
+      const timeout = 45000;
+
+      while (Date.now() - start < timeout) {
+        try {
+          const r = await fetch(API + '/health', { signal: AbortSignal.timeout(5000) });
+          if (r.ok) {
+            backendReady = true;
+            banner.className = 'health-banner ready';
+            text.textContent = '✅ Backend ready';
+            setTimeout(() => banner.classList.add('hidden'), 3000);
+            return;
+          }
+        } catch {}
+        await sleep(3000);
+      }
+      banner.className = 'health-banner offline';
+      text.textContent = '⚠ Backend offline — Demo Mode fully available';
+    }
+
+    // =========================================================================
+    // Scan flow with progress overlay
+    // =========================================================================
+    async function doScanWithOverlay() {
+      const vendor = $('vendor-input').value.trim().toLowerCase();
+      if (!vendor) return;
+
+      // Show overlay
+      const overlay = $('scan-overlay');
+      overlay.classList.remove('hidden');
+      const steps = ['scan-step-1','scan-step-2','scan-step-3','scan-step-4','scan-step-5'];
+      steps.forEach(s => { $(s).className = 'scan-step'; $(s).querySelector('.step-icon').textContent = '○'; });
+      $('scan-slow-msg').classList.add('hidden');
+
+      let slowTimer = setTimeout(() => $('scan-slow-msg').classList.remove('hidden'), 10000);
+
+      // Animate steps
+      async function activateStep(idx) {
+        if (idx > 0) {
+          $(steps[idx-1]).classList.add('done');
+          $(steps[idx-1]).classList.remove('active');
+          $(steps[idx-1]).querySelector('.step-icon').textContent = '✓';
+        }
+        if (idx < steps.length) {
+          $(steps[idx]).classList.add('active');
+          $(steps[idx]).querySelector('.step-icon').textContent = '⟳';
+        }
+      }
+
+      $('scan-btn').disabled = true;
+      $('scan-btn').textContent = 'Scanning…';
+      $('scan-meta').textContent = `scanning ${vendor} …`;
+
+      try {
+        activateStep(0);
+        const scanPromise = api('/scan', { method: 'POST', body: JSON.stringify({ vendor }) });
+
+        // Simulate step progress while waiting
+        const stepDelays = [1500, 1500, 1500, 1000];
+        let stepIdx = 1;
+        const stepTimer = setInterval(() => {
+          if (stepIdx < 4) { activateStep(stepIdx); stepIdx++; }
+        }, stepDelays[0]);
+
+        const r = await scanPromise;
+        clearInterval(stepTimer);
+        clearTimeout(slowTimer);
+
+        // Complete all steps
+        for (let i = 0; i < 5; i++) {
+          $(steps[i]).classList.remove('active');
+          $(steps[i]).classList.add('done');
+          $(steps[i]).querySelector('.step-icon').textContent = '✓';
+        }
+        await sleep(500);
+        overlay.classList.add('hidden');
+
+        lastScan = r;
+        renderOverview(r);
+        renderFindings(r.findings);
+        renderDpdp(r.dpdp, r.total_dpdp_exposure_inr);
+        pushVendorHistory(vendor);
+        refreshGraph().catch(() => {});
+
+        // Auto-scroll to trust score and flash highlight
+        navTo('overview');
+        const scoreEl = $('score-ring');
+        scoreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scoreEl.classList.add('score-flash');
+        setTimeout(() => scoreEl.classList.remove('score-flash'), 1500);
+
+        // Update agent CTA
+        const agentBtn = $('agent-run-btn');
+        if (agentBtn) {
+          const chip = $('agent-vendor-chip');
+          if (chip) chip.textContent = vendor;
+        }
+      } catch (e) {
+        clearTimeout(slowTimer);
+        overlay.classList.add('hidden');
+        $('scan-meta').innerHTML = `<span class="text-rose-300">Something went wrong.</span> <button class="btn-ghost px-2 py-1 rounded text-[11px] ml-2" onclick="doScanWithOverlay()">Retry</button> <button class="btn-ghost px-2 py-1 rounded text-[11px] ml-1" onclick="activateDemoMode()">Try Demo Mode</button>`;
+      } finally {
+        $('scan-btn').disabled = false;
+        $('scan-btn').textContent = 'Scan Vendor';
+      }
+    }
+
+    // =========================================================================
+    // Frontend download generation (P4)
+    // =========================================================================
+    function generateDpdpCsv() {
+      if (!lastScan) return;
+      const rows = [['Clause','Obligation','Finding','₹ Liability','Action']];
+      for (const m of lastScan.dpdp) {
+        rows.push([m.clause, m.obligation, `${m.count} finding(s)`, m.max_penalty_inr, m.immediate_action || '']);
+      }
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `dpdp-exposure-${lastScan.vendor}-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function generatePlaybookCsv() {
+      if (!currentPlaybook) return;
+      const rows = [['Task','Clause','Owner','SLA','₹ Avoided','Status']];
+      for (const r of currentPlaybook.items) {
+        rows.push([r.task, r.clause, r.owner, `${r.sla_days}d`, r.savings_inr_if_addressed, 'Open']);
+      }
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `playbook-${currentPlaybook.vendor}-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function generateBoardPdf() {
+      if (!lastScan) return;
+      const vendor = lastScan.vendor;
+      const score = lastScan.trust.score;
+      const band = lastScan.trust.label || bandLabel(score);
+      const bandColor = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+
+      const printWin = window.open('', '_blank');
+      printWin.document.write(`<!DOCTYPE html><html><head><title>VendorGuard Board Report — ${esc(vendor)}</title>
+        <style>body{font-family:Inter,sans-serif;color:#1e293b;padding:40px;max-width:800px;margin:0 auto}
+        h1{color:#0f172a}h2{color:#334155;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-top:24px}
+        .score{font-size:48px;font-weight:800;text-align:center;padding:20px;border-radius:16px;margin:20px 0}
+        table{width:100%;border-collapse:collapse;margin:16px 0}td,th{border:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}
+        th{background:#f8fafc;font-weight:600}.band{display:inline-block;padding:4px 12px;border-radius:8px;font-weight:700;font-size:14px}
+        @media print{body{padding:20px}}</style></head><body>
+        <h1>🛡 VendorGuard AI — Board Report</h1>
+        <p style="color:#64748b">Generated ${new Date().toLocaleString()} for <strong>${esc(vendor)}</strong></p>
+        <div class="score" style="background:${bandColor}15;color:${bandColor};border:2px solid ${bandColor}">
+          Trust Score: ${score}/100 <span class="band" style="background:${bandColor};color:white">${band.toUpperCase()}</span>
+        </div>
+        <h2>Risk Summary</h2><p>${esc(lastScan.ai_summary || '')}</p>
+        <h2>OSINT Findings (${lastScan.findings.length})</h2>
+        <table><tr><th>Severity</th><th>Source</th><th>Title</th><th>Description</th></tr>
+        ${lastScan.findings.map(f => `<tr><td style="color:${f.severity==='critical'?'#ef4444':f.severity==='high'?'#f59e0b':'#eab308'}">${f.severity.toUpperCase()}</td><td>${esc(f.source)}</td><td>${esc(f.title)}</td><td>${esc(f.description)}</td></tr>`).join('')}
+        </table>
+        <h2>DPDP Exposure — ${fmtINR(lastScan.total_dpdp_exposure_inr)}</h2>
+        <table><tr><th>Clause</th><th>Obligation</th><th>₹ Liability</th><th>Action</th></tr>
+        ${lastScan.dpdp.map(m => `<tr><td>${esc(m.clause)}</td><td>${esc(m.obligation)}</td><td>${fmtINR(m.max_penalty_inr)}</td><td>${esc(m.immediate_action||'')}</td></tr>`).join('')}
+        </table>
+        <p style="color:#94a3b8;font-size:11px;margin-top:40px">VendorGuard AI v3.3.0 · Grounded in DPDP Act 2023 · Team Rashi Innovators</p>
+        </body></html>`);
+      printWin.document.close();
+      setTimeout(() => printWin.print(), 500);
+    }
+
+    async function generateAuditZip() {
+      if (!lastScan) return;
+      const zip = new JSZip();
+      zip.file('scan.json', JSON.stringify(lastScan, null, 2));
+
+      // DPDP CSV
+      const dpdpRows = [['Clause','Obligation','Finding','Liability','Action']];
+      for (const m of lastScan.dpdp) dpdpRows.push([m.clause, m.obligation, `${m.count} finding(s)`, m.max_penalty_inr, m.immediate_action || '']);
+      zip.file('dpdp-exposure.csv', dpdpRows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'));
+
+      // Playbook CSV
+      if (currentPlaybook) {
+        const pbRows = [['Task','Clause','Owner','SLA','Avoided','Status']];
+        for (const r of currentPlaybook.items) pbRows.push([r.task, r.clause, r.owner, `${r.sla_days}d`, r.savings_inr_if_addressed, 'Open']);
+        zip.file('playbook.csv', pbRows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'));
+      }
+
+      zip.file('README.txt', `VendorGuard AI — Audit Evidence Pack\nGenerated: ${new Date().toISOString()}\nVendor: ${lastScan.vendor}\n\nContents:\n- scan.json: Raw scan results including findings, trust score, DPDP mappings\n- dpdp-exposure.csv: DPDP clause exposure table\n- playbook.csv: Remediation playbook with owners, SLAs, and savings\n\nThis pack is suitable for regulator evidence submission under DPDP Act 2023 §8.`);
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vendorguard-audit-${lastScan.vendor}-${new Date().toISOString().slice(0,10)}.zip`;
+      a.click();
+    }
+
+    // =========================================================================
+    // Guided Demo Tour (P9)
+    // =========================================================================
+    const TOUR_STEPS = [
+      { text: 'This is VendorGuard. We prevent vendor-mediated data breaches and map exposure to India\'s DPDP Act 2023.', highlight: 'vendor-input', action: null },
+      { text: 'We just scanned analytics-vendor.io and found 5 critical issues.', highlight: 'score-ring', action: () => { if (!demoModeActive) activateDemoMode(); navTo('overview'); } },
+      { text: 'Each finding maps directly to a DPDP clause with ₹ liability.', highlight: 'dpdp-list', action: () => navTo('dpdp') },
+      { text: 'Our gateway blocked a simulated data exfiltration in 0.3s.', highlight: 'gw-active-chip', action: () => navTo('gateway') },
+      { text: 'One click generates a board-ready PDF for your CISO.', highlight: 'report-card', action: () => navTo('report') },
+    ];
+    let tourStep = 0;
+
+    function startTour() {
+      tourStep = 0;
+      $('tour-overlay').classList.remove('hidden');
+      showTourStep();
+    }
+
+    function showTourStep() {
+      if (tourStep >= TOUR_STEPS.length) { endTour(); return; }
+      const step = TOUR_STEPS[tourStep];
+      if (step.action) step.action();
+
+      $('tour-step-indicator').textContent = `Step ${tourStep + 1} of ${TOUR_STEPS.length}`;
+      $('tour-text').textContent = step.text;
+      $('tour-next').textContent = tourStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next →';
+
+      const tooltip = $('tour-tooltip');
+      tooltip.classList.remove('hidden');
+
+      const target = $(step.highlight);
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        tooltip.style.top = Math.min(rect.bottom + 16, window.innerHeight - 200) + 'px';
+        tooltip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - 420)) + 'px';
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        tooltip.style.top = '50%';
+        tooltip.style.left = '50%';
+        tooltip.style.transform = 'translate(-50%, -50%)';
+      }
+    }
+
+    function endTour() {
+      $('tour-overlay').classList.add('hidden');
+      $('tour-tooltip').classList.add('hidden');
+      tourStep = 0;
+    }
+
+    // =========================================================================
+    // Compliance Diff — sample loader (P6)
+    // =========================================================================
+    function loadSampleDiff() {
+      const empty = $('diff-empty');
+      const card = $('diff-card');
+      empty.classList.add('hidden');
+      card.classList.remove('hidden');
+      $('diff-vendor').textContent = 'analytics-vendor.io (sample)';
+      $('diff-result').classList.remove('hidden');
+      $('diff-score').textContent = '-12';
+      $('diff-score').style.color = '#ef4444';
+      $('diff-exposure').textContent = '+₹80L';
+      $('diff-exposure').style.color = '#ef4444';
+      $('diff-resolved').textContent = '1';
+      $('diff-new').textContent = '2';
+      $('diff-resolved-clauses').innerHTML = '<span class="chip mono" style="color:#10b981;border-color:#10b98144;background:#10b98114">§5</span>';
+      $('diff-new-clauses').innerHTML = '<span class="chip mono" style="color:#ef4444;border-color:#ef444444;background:#ef444414">§8(6)</span> <span class="chip mono" style="color:#ef4444;border-color:#ef444444;background:#ef444414">§9</span>';
+      $('diff-summary').textContent = 'Vendor posture degraded since last scan. 2 new critical findings detected, 1 resolved. Score dropped by 12 points. Exposure increased by ₹80L. New DPDP clauses §8(6) and §9 now triggered.';
+    }
+
+    // =========================================================================
+    // QR modal — updated (P7)
+    // =========================================================================
+    function showQrModalV2() {
+      const here = location.origin + location.pathname + location.search;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(here)}`;
+      openModal('🔗 Share / QR', `
+        <div class="flex items-center gap-5">
+          <img src="${esc(qrUrl)}" alt="demo QR" class="rounded-lg border border-slate-700 bg-white" />
+          <div class="flex-1 text-xs text-slate-300 space-y-2">
+            <div class="text-sm font-semibold text-amber-300">Share this live demo with your team or judges</div>
+            <div>Scan the QR code or copy the link below.</div>
+            <textarea readonly rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-[11px] mono">${esc(here)}</textarea>
+            <button class="btn-primary px-3 py-1.5 rounded-lg text-xs" onclick="navigator.clipboard.writeText('${here.replace(/'/g, "\\'")}').then(()=>this.textContent='✓ Copied!').catch(()=>{})">Copy link</button>
+          </div>
+        </div>
+      `);
+    }
+
+    // =========================================================================
+    // Persona tooltips (P7)
+    // =========================================================================
+    function setPersonaWithTooltip(p) {
+      setPersona(p);
+      if (p !== 'ciso') {
+        const tip = document.createElement('div');
+        tip.className = 'fixed top-20 right-4 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-300 z-50';
+        tip.textContent = `Role-filtered view coming soon. Demo shows CISO view.`;
+        document.body.appendChild(tip);
+        setTimeout(() => tip.remove(), 3000);
+      }
+    }
+
+    // =========================================================================
+    // Ask DPDP — offline fallback (P7)
+    // =========================================================================
+    async function drawerAskWithFallback(q) {
+      const query = (q != null ? q : $('drawer-q').value).trim();
+      if (!query) return;
+      $('drawer-q').value = query;
+      $('drawer-answer').innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+      $('drawer-cites').innerHTML = '';
+      try {
+        const r = await api('/rag/ask', { method:'POST', body: JSON.stringify({ query }) });
+        $('drawer-answer').textContent = r.answer || '(no answer)';
+        const cites = r.citations || [];
+        $('drawer-cites').innerHTML = cites.slice(0, 3).map(c => `
+          <div class="rounded border border-amber-500/30 bg-amber-500/5 p-2">
+            <div class="text-[10px] uppercase tracking-wider text-amber-400 mono mb-1">${esc(c.section)} · p.${esc(c.page || '?')}</div>
+            <div class="text-slate-200 leading-relaxed">&ldquo;${esc(c.excerpt || '')}&rdquo;</div>
+          </div>
+        `).join('');
+      } catch {
+        // Fallback to canned answers
+        const match = Object.entries(CANNED_RAG).find(([k]) => query.toLowerCase().includes(k.toLowerCase().slice(0,10)));
+        if (match) {
+          const [, data] = match;
+          $('drawer-answer').textContent = data.answer;
+          $('drawer-cites').innerHTML = data.citations.map(c => `
+            <div class="rounded border border-amber-500/30 bg-amber-500/5 p-2">
+              <div class="text-[10px] uppercase tracking-wider text-amber-400 mono mb-1">${esc(c.section)} · p.${esc(c.page || '?')}</div>
+              <div class="text-slate-200 leading-relaxed">&ldquo;${esc(c.excerpt || '')}&rdquo;</div>
+            </div>
+          `).join('');
+        } else {
+          $('drawer-answer').textContent = 'Backend offline. Try one of the suggested questions above, or activate Demo Mode.';
+        }
+      }
+    }
+
+    // =========================================================================
+    // Breach clock — enhanced (P5)
+    // =========================================================================
+    function simulateBreachNow() {
+      breachStartedAt = Date.now();
+      const vendor = $('vendor-input').value.trim() || 'analytics-vendor.io';
+      startBreachCountdown(vendor);
+    }
+
+    function resetBreachClock() {
+      stopBreachCountdown();
+      $('cd-dpb').textContent = '72h 00m 00s';
+      $('cd-certin').textContent = '06h 00m 00s';
+      $('cd-sla-dpb').classList.add('hidden');
+      $('cd-sla-certin').classList.add('hidden');
+      $('breach-countdown').classList.remove('hidden');
     }
 
     // =========================================================================
     // Wire everything up
     // =========================================================================
     function wireEvents() {
-      $('scan-btn').addEventListener('click', doScan);
-      $('vendor-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') doScan(); });
+      $('scan-btn').addEventListener('click', doScanWithOverlay);
+      $('vendor-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') doScanWithOverlay(); });
 
       $('jump-findings').addEventListener('click', () => navTo('findings'));
       $('jump-dpdp').addEventListener('click', () => navTo('dpdp'));
@@ -2440,7 +3351,8 @@ This addendum governs the processing of personal data.
       $('rag-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') askDpdp(); });
       $$('#rag-chips button').forEach(b => b.addEventListener('click', () => askDpdp(b.dataset.q)));
 
-      $('demo-btn').addEventListener('click', runDemo);
+      $('demo-btn').addEventListener('click', activateDemoMode);
+      $('exit-demo-btn').addEventListener('click', exitDemoMode);
 
       // v3.2.1: clicking the selftest chip re-runs the benchmark harness.
       const st = $('selftest-chip');
@@ -2467,25 +3379,52 @@ This addendum governs the processing of personal data.
 
       $('ask-open').addEventListener('click', () => toggleDrawer(true));
       $('ask-close').addEventListener('click', () => toggleDrawer(false));
-      $('drawer-ask').addEventListener('click', () => drawerAsk());
-      $('drawer-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') drawerAsk(); });
+      $('drawer-ask').addEventListener('click', () => drawerAskWithFallback());
+      $('drawer-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') drawerAskWithFallback(); });
+
+      // Breach clock buttons
+      $('cd-simulate').addEventListener('click', simulateBreachNow);
+      $('cd-reset').addEventListener('click', resetBreachClock);
+
+      // Ask DPDP nav button
+      $('ask-dpdp-nav-btn').addEventListener('click', () => toggleDrawer(true));
+
+      // Tour
+      $('tour-btn').addEventListener('click', startTour);
+      $('tour-next').addEventListener('click', () => { tourStep++; showTourStep(); });
+      $('tour-skip').addEventListener('click', endTour);
+      $('tour-overlay').addEventListener('click', endTour);
+
+      // Bulk sample button
+      $('bulk-sample-btn').addEventListener('click', () => {
+        $('bulk-input').value = 'razorpay.com\npaytm.com\nfreshworks.com\nzoho.com\npostman.com';
+        updateBulkCounter();
+      });
+
+      // Bulk counter
+      $('bulk-input').addEventListener('input', updateBulkCounter);
 
       window.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
           e.preventDefault();
-          runDemo();
+          activateDemoMode();
         }
-        // '/' toggles Ask DPDP drawer — unless focused in an input/textarea
         const tag = (document.activeElement && document.activeElement.tagName) || '';
         const typing = tag === 'INPUT' || tag === 'TEXTAREA';
-        if (e.key === '/' && !typing) {
-          e.preventDefault();
-          toggleDrawer();
-        }
         if (e.key === 'Escape') {
           toggleDrawer(false);
+          closeModal();
+          endTour();
         }
       });
+    }
+
+    function updateBulkCounter() {
+      const raw = $('bulk-input').value || '';
+      const list = raw.split(/[\s,;\n]+/).map(v => v.trim()).filter(Boolean);
+      const counter = $('bulk-counter');
+      counter.textContent = `${list.length} / 25 domains`;
+      counter.style.color = list.length > 25 ? '#fda4af' : '#94a3b8';
     }
 
     // =========================================================================
@@ -2715,6 +3654,7 @@ This addendum governs the processing of personal data.
     // v3.3 — Real-Breach Back-test panel (T3)
     // =========================================================================
     async function refreshBacktestCases() {
+      if (demoModeActive) return;
       const el = $('backtest-cases');
       el.innerHTML = '<div class="text-xs text-slate-500 italic">loading…</div>';
       try {
@@ -2835,6 +3775,20 @@ This addendum governs the processing of personal data.
       }
     }
 
+    function loadSampleComparison() {
+      const grid = $('compare-grid');
+      grid.classList.remove('hidden');
+      const compareEmpty = $('compare-empty');
+      if (compareEmpty) compareEmpty.classList.add('hidden');
+      const vendors = [
+        { vendor: 'analytics-vendor.io', trust: { score: 34, band: 'block' }, findings: DEMO_DATA.findings, dpdp: DEMO_DATA.dpdp, total_dpdp_exposure_inr: 61000000 },
+        { vendor: 'payment-gateway.co', trust: { score: 45, band: 'block' }, findings: DEMO_DATA.findings.slice(0,3), dpdp: DEMO_DATA.dpdp.slice(0,2), total_dpdp_exposure_inr: 32000000 },
+      ];
+      grid.innerHTML = vendors.map(v => renderCompareCard(v, v.vendor)).join('');
+    }
+    window.loadSampleComparison = loadSampleComparison;
+    window.loadSampleDiff = loadSampleDiff;
+
     function renderCompareCard(d, fallbackName) {
       const scan = (d && (d.scan || d)) || {};
       const t = scan.trust || {};
@@ -2871,14 +3825,20 @@ This addendum governs the processing of personal data.
       if (!breachStartedAt) breachStartedAt = Date.now();
       const banner = $('breach-countdown');
       banner.classList.remove('hidden');
+      banner.title = 'This is a simulation. Real breach detection wires to your SIEM.';
       if (vendor) $('cd-vendor').textContent = vendor;
-      if (breachTimerHandle) return;
+      if (breachTimerHandle) clearInterval(breachTimerHandle);
       const tick = () => {
         const elapsedSec = Math.floor((Date.now() - breachStartedAt) / 1000);
         const dpbRem = Math.max(0, 72 * 3600 - elapsedSec);
         const certinRem = Math.max(0, 6 * 3600 - elapsedSec);
         $('cd-dpb').textContent    = fmtDur(dpbRem);
         $('cd-certin').textContent = fmtDur(certinRem);
+        // SLA breached badges
+        if (dpbRem <= 0) $('cd-sla-dpb').classList.remove('hidden');
+        else $('cd-sla-dpb').classList.add('hidden');
+        if (certinRem <= 0) $('cd-sla-certin').classList.remove('hidden');
+        else $('cd-sla-certin').classList.add('hidden');
       };
       tick();
       breachTimerHandle = setInterval(tick, 1000);
@@ -2888,6 +3848,8 @@ This addendum governs the processing of personal data.
       breachTimerHandle = null;
       breachStartedAt = null;
       $('breach-countdown').classList.add('hidden');
+      $('cd-sla-dpb').classList.add('hidden');
+      $('cd-sla-certin').classList.add('hidden');
     }
     function fmtDur(s) {
       const h = Math.floor(s / 3600);
@@ -3015,11 +3977,546 @@ This addendum governs the processing of personal data.
     }
 
     // =========================================================================
+    // COMPANY LIBRARY
+    // =========================================================================
+    let companyData = null;
+    let currentFilter = 'all';
+
+    const FALLBACK_COMPANIES = {
+      total: 10,
+      categories: {
+        strong: [
+          { domain: 'google-cloud-vendor.com', label: 'Enterprise cloud vendor — strong security posture (SAFE)', category: 'strong', trust_score: 92, band: 'safe', findings_count: 2, critical_count: 0, high_count: 0 },
+          { domain: 'microsoft-enterprise.com', label: 'Enterprise software vendor — strong security (SAFE)', category: 'strong', trust_score: 88, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
+          { domain: 'cleanpay-gateway.com', label: 'Payments vendor with mature security posture (safe baseline)', category: 'strong', trust_score: 85, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
+        ],
+        mid: [
+          { domain: 'paytrust-partner.com', label: 'Payments vendor (deterministic demo target)', category: 'mid', trust_score: 48, band: 'watch', findings_count: 6, critical_count: 1, high_count: 2 },
+          { domain: 'healthbuddy-partner.com', label: 'Healthtech partner handling sensitive PII', category: 'mid', trust_score: 44, band: 'watch', findings_count: 5, critical_count: 1, high_count: 2 },
+          { domain: 'databridge-cloud.com', label: 'Cloud storage vendor with cross-border data flows', category: 'mid', trust_score: 38, band: 'watch', findings_count: 6, critical_count: 2, high_count: 1 },
+        ],
+        breached: [
+          { domain: 'yahoo-legacy-services.com', label: 'Legacy web services vendor — BREACHED (critical)', category: 'breached', trust_score: 12, band: 'block', findings_count: 7, critical_count: 4, high_count: 1 },
+          { domain: 'equifax-analytics.com', label: 'Credit analytics vendor — BREACHED (critical)', category: 'breached', trust_score: 15, band: 'block', findings_count: 6, critical_count: 4, high_count: 1 },
+          { domain: 'logix-crm-india.com', label: 'Worst-case CRM vendor — maximum DPDP exposure', category: 'breached', trust_score: 8, band: 'block', findings_count: 9, critical_count: 4, high_count: 2 },
+          { domain: 'shopquick-vendor.com', label: 'E-commerce vendor with exposed services', category: 'breached', trust_score: 22, band: 'block', findings_count: 6, critical_count: 2, high_count: 2 },
+        ],
+      },
+      all: [],
+    };
+    FALLBACK_COMPANIES.all = [...FALLBACK_COMPANIES.categories.breached, ...FALLBACK_COMPANIES.categories.mid, ...FALLBACK_COMPANIES.categories.strong];
+
+    async function loadCompanyLibrary() {
+      const grid = $('company-library-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div class="col-span-full text-center py-8"><div class="animate-pulse text-cyan-400">Loading companies...</div></div>';
+      try {
+        const r = await fetch(`${API}/companies`, { signal: AbortSignal.timeout(10000) });
+        if (!r.ok) throw new Error('API error');
+        companyData = await r.json();
+      } catch {
+        companyData = FALLBACK_COMPANIES;
+      }
+      renderCompanyGrid();
+    }
+
+    function filterCompanies(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.company-filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.filter === filter);
+        if (b.dataset.filter === filter) {
+          b.classList.add('ring-2', 'ring-cyan-500');
+        } else {
+          b.classList.remove('ring-2', 'ring-cyan-500');
+        }
+      });
+      renderCompanyGrid();
+    }
+
+    function renderCompanyGrid() {
+      const grid = $('company-library-grid');
+      if (!grid || !companyData) return;
+      let companies = currentFilter === 'all' ? companyData.all : (companyData.categories[currentFilter] || []);
+      if (!companies.length) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500">No companies in this category.</div>';
+        return;
+      }
+      grid.innerHTML = companies.map(c => {
+        const bandColors = {
+          block: 'border-red-700 bg-red-950/30',
+          watch: 'border-amber-700 bg-amber-950/30',
+          safe: 'border-emerald-700 bg-emerald-950/30',
+        };
+        const scoreColors = {
+          block: 'text-red-400',
+          watch: 'text-amber-400',
+          safe: 'text-emerald-400',
+        };
+        const bc = bandColors[c.band] || 'border-slate-700 bg-slate-900/50';
+        const sc = scoreColors[c.band] || 'text-slate-300';
+        const catBadge = c.category === 'strong' ? '<span class="text-[10px] bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 rounded">SECURE</span>'
+          : c.category === 'breached' ? '<span class="text-[10px] bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded">BREACHED</span>'
+          : '<span class="text-[10px] bg-amber-900/50 text-amber-300 px-1.5 py-0.5 rounded">MIXED</span>';
+        return `
+          <div class="rounded-2xl border ${bc} p-4 cursor-pointer hover:scale-[1.02] transition-transform" onclick="companyCardClick('${c.domain}')">
+            <div class="flex items-start justify-between mb-2">
+              <div class="text-sm font-semibold text-slate-200 truncate flex-1">${c.domain}</div>
+              ${catBadge}
+            </div>
+            <div class="text-xs text-slate-400 mb-3 line-clamp-2">${c.label}</div>
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-2xl font-bold ${sc}">${c.trust_score}</span>
+                <span class="text-xs text-slate-500">/100</span>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] uppercase font-bold ${sc}">${c.band}</div>
+                <div class="text-[10px] text-slate-500">${c.findings_count} findings</div>
+                ${c.critical_count > 0 ? `<div class="text-[10px] text-red-400">${c.critical_count} critical</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function companyCardClick(domain) {
+      // Set the domain in the audit input and switch to audit panel
+      const auditInput = $('audit-vendor-input');
+      if (auditInput) auditInput.value = domain;
+      navTo('audit');
+      runAuditPipeline();
+    }
+
+    // =========================================================================
+    // AUDIT PIPELINE
+    // =========================================================================
+    let lastAuditResult = null;
+
+    function quickAudit(domain) {
+      const input = $('audit-vendor-input');
+      if (input) input.value = domain;
+      runAuditPipeline();
+    }
+
+    async function runAuditPipeline() {
+      const input = $('audit-vendor-input');
+      const vendor = (input && input.value || '').trim().toLowerCase();
+      if (!vendor) { alert('Enter a vendor domain'); return; }
+
+      const stepsEl = $('audit-pipeline-steps');
+      const logsEl = $('audit-logs');
+      const logOutput = $('audit-log-output');
+      const reportEl = $('audit-intel-report');
+      const btn = $('run-audit-btn');
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+      if (reportEl) reportEl.classList.add('hidden');
+      if (logsEl) { logsEl.classList.remove('hidden'); }
+      if (logOutput) logOutput.innerHTML = '';
+
+      const pipelineSteps = [
+        { step: 1, label: 'DNS & TLS Analysis', icon: '🔐', detail: 'Checking SPF/DKIM/DMARC + TLS configuration...' },
+        { step: 2, label: 'Certificate Transparency Scan', icon: '📜', detail: 'Querying crt.sh for subdomain enumeration...' },
+        { step: 3, label: 'Threat Intelligence Feeds', icon: '🕵️', detail: 'Querying Shodan, HaveIBeenPwned, VirusTotal...' },
+        { step: 4, label: 'Vulnerability Scanning', icon: '🔍', detail: 'Running ProjectDiscovery Nuclei templates...' },
+        { step: 5, label: 'DPDP Act 2023 Mapping', icon: '📋', detail: 'Mapping findings to DPDP clauses with ₹ liability...' },
+        { step: 6, label: 'AI Risk Analysis & Scoring', icon: '🧠', detail: 'Computing trust score + generating AI summary...' },
+      ];
+
+      // Render initial pipeline state
+      if (stepsEl) {
+        stepsEl.innerHTML = pipelineSteps.map(s => `
+          <div id="audit-step-${s.step}" class="rounded-xl border border-slate-800 bg-slate-900/50 p-4 flex items-center gap-4 transition-all">
+            <div class="text-2xl w-8 text-center">${s.icon}</div>
+            <div class="flex-1">
+              <div class="text-sm font-medium text-slate-300">Step ${s.step}: ${s.label}</div>
+              <div class="text-xs text-slate-500">${s.detail}</div>
+            </div>
+            <div class="text-xs text-slate-600" id="audit-step-status-${s.step}">Pending</div>
+          </div>
+        `).join('');
+      }
+
+      function logMsg(msg) {
+        if (!logOutput) return;
+        const ts = new Date().toISOString().split('T')[1].split('.')[0];
+        logOutput.innerHTML += `<div>[${ts}] ${msg}</div>`;
+        logOutput.scrollTop = logOutput.scrollHeight;
+      }
+
+      function updateStep(step, status, detail, durationMs) {
+        const el = document.getElementById(`audit-step-${step}`);
+        const statusEl = document.getElementById(`audit-step-status-${step}`);
+        if (!el) return;
+        if (status === 'running') {
+          el.classList.remove('border-slate-800');
+          el.classList.add('border-cyan-700', 'bg-cyan-950/20');
+          if (statusEl) { statusEl.textContent = 'Running...'; statusEl.classList.add('text-cyan-400', 'animate-pulse'); }
+        } else if (status === 'complete') {
+          el.classList.remove('border-cyan-700', 'bg-cyan-950/20');
+          el.classList.add('border-emerald-700', 'bg-emerald-950/20');
+          if (statusEl) {
+            statusEl.textContent = detail ? `${durationMs}ms` : 'Done';
+            statusEl.classList.remove('text-cyan-400', 'animate-pulse');
+            statusEl.classList.add('text-emerald-400');
+          }
+        } else if (status === 'error') {
+          el.classList.remove('border-cyan-700', 'bg-cyan-950/20');
+          el.classList.add('border-red-700', 'bg-red-950/20');
+          if (statusEl) { statusEl.textContent = 'Error'; statusEl.classList.add('text-red-400'); }
+        }
+      }
+
+      // Animate steps while making the API call
+      let stepAnimInterval = null;
+      let currentAnimStep = 1;
+      logMsg(`Starting full audit pipeline for ${vendor}...`);
+
+      // Start step animation
+      async function animateSteps() {
+        for (let i = 1; i <= 6; i++) {
+          if (lastAuditResult) break; // API already returned
+          updateStep(i, 'running');
+          logMsg(`Step ${i}: ${pipelineSteps[i-1].label} — ${pipelineSteps[i-1].detail}`);
+          await new Promise(r => setTimeout(r, 800 + Math.random() * 700));
+          if (!lastAuditResult) {
+            updateStep(i, 'complete', true, Math.floor(100 + Math.random() * 400));
+            logMsg(`Step ${i}: Complete`);
+          }
+        }
+      }
+
+      lastAuditResult = null;
+      const animPromise = animateSteps();
+
+      // Make the actual API call
+      try {
+        logMsg('Connecting to backend API...');
+        const r = await fetch(`${API}/audit/pipeline/${encodeURIComponent(vendor)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        lastAuditResult = await r.json();
+        logMsg('Backend pipeline complete. Processing results...');
+      } catch (err) {
+        logMsg(`Backend unavailable (${err.message}). Using demo data...`);
+        // Fall back to demo data
+        lastAuditResult = generateDemoAuditResult(vendor);
+      }
+
+      // Wait for animation to finish
+      await animPromise;
+
+      // Update steps with real data if available
+      if (lastAuditResult && lastAuditResult.pipeline) {
+        lastAuditResult.pipeline.steps.forEach(s => {
+          updateStep(s.step, 'complete', true, s.duration_ms);
+          logMsg(`Step ${s.step}: ${s.label} — ${s.details} (${s.duration_ms}ms)`);
+        });
+      } else {
+        for (let i = 1; i <= 6; i++) updateStep(i, 'complete', true, Math.floor(100 + Math.random() * 500));
+      }
+
+      logMsg('Pipeline complete. Rendering intelligence report...');
+
+      // Render intelligence report
+      renderIntelligenceReport(lastAuditResult);
+
+      // Also update the main scan view
+      if (lastAuditResult && lastAuditResult.result) {
+        lastScan = lastAuditResult.result;
+        try { renderOverview(lastScan); } catch {}
+        try { renderFindings(lastScan.findings || []); } catch {}
+        try { renderDPDP(lastScan.dpdp || []); } catch {}
+      }
+
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Full Audit'; }
+    }
+
+    function generateDemoAuditResult(vendor) {
+      // Generate fallback demo data using the FALLBACK_COMPANIES data
+      const company = FALLBACK_COMPANIES.all.find(c => c.domain === vendor);
+      const score = company ? company.trust_score : 42;
+      const band = company ? company.band : 'watch';
+      const critCount = company ? company.critical_count : 2;
+      const findingsCount = company ? company.findings_count : 5;
+
+      const demoFindings = [];
+      const sources = ['shodan', 'hibp', 'crt.sh', 'virustotal', 'dns', 'tls', 'nuclei'];
+      const severities = ['critical', 'high', 'medium', 'low'];
+      for (let i = 0; i < findingsCount; i++) {
+        demoFindings.push({
+          id: `demo-${i}`,
+          source: sources[i % sources.length],
+          title: `Demo finding ${i+1} from ${sources[i % sources.length]}`,
+          description: `Simulated finding for ${vendor}`,
+          severity: i < critCount ? 'critical' : severities[Math.min(i, severities.length - 1)],
+          evidence: {},
+        });
+      }
+
+      return {
+        vendor,
+        pipeline: {
+          total_steps: 6,
+          total_duration_ms: 2400,
+          steps: [
+            { step: 1, label: 'DNS & TLS Analysis', icon: '🔐', status: 'complete', duration_ms: 320, details: 'Checked SPF/DKIM/DMARC + TLS config.', sources: ['DNS resolver', 'TLS handshake'], findings_count: 1 },
+            { step: 2, label: 'Certificate Transparency Scan', icon: '📜', status: 'complete', duration_ms: 450, details: 'Queried crt.sh for subdomain enumeration.', sources: ['crt.sh'], findings_count: 1 },
+            { step: 3, label: 'Threat Intelligence Feeds', icon: '🕵️', status: 'complete', duration_ms: 680, details: 'Queried Shodan, HIBP, VirusTotal.', sources: ['Shodan (mock)', 'HIBP (mock)', 'VirusTotal (mock)'], findings_count: 2 },
+            { step: 4, label: 'Vulnerability Scanning', icon: '🔍', status: 'complete', duration_ms: 220, details: 'Ran Nuclei templates.', sources: ['Nuclei (mock)'], findings_count: 1 },
+            { step: 5, label: 'DPDP Act 2023 Mapping', icon: '📋', status: 'complete', duration_ms: 180, details: `Mapped ${findingsCount} findings to DPDP clauses.`, sources: ['DPDP RAG engine'], findings_count: 3 },
+            { step: 6, label: 'AI Risk Analysis & Scoring', icon: '🧠', status: 'complete', duration_ms: 550, details: `Trust score: ${score}/100 (${band}).`, sources: ['ML scorer', 'AI summary (template)'], findings_count: 0 },
+          ],
+        },
+        result: {
+          vendor, scanned_at: new Date().toISOString(), duration_ms: 2400,
+          findings: demoFindings, dpdp: [],
+          ai_summary: `## Vendor Risk Assessment: ${vendor}\n\nTrust Score: ${score}/100 — Band: ${band.toUpperCase()}\n\nThis vendor ${band === 'block' ? 'presents critical security risks and should be immediately blocked' : band === 'watch' ? 'requires enhanced monitoring' : 'meets minimum security standards'}. ${critCount > 0 ? `${critCount} critical findings require immediate attention.` : 'No critical findings detected.'}\n\n**Recommendation**: ${band === 'block' ? 'BLOCK — Revoke vendor access immediately.' : band === 'watch' ? 'WATCH — Enhanced monitoring recommended.' : 'SAFE — Standard vendor oversight sufficient.'}`,
+          trust: { score, band, color: band === 'block' ? '#ef4444' : band === 'watch' ? '#f59e0b' : '#10b981', label: band.toUpperCase() },
+          total_dpdp_exposure_inr: band === 'block' ? 250000000 : band === 'watch' ? 80000000 : 5000000,
+        },
+        intelligence_report: {
+          classification: 'VENDOR RISK INTELLIGENCE REPORT',
+          subject: vendor, date: new Date().toISOString(),
+          trust_score: score, trust_band: band,
+          total_findings: findingsCount, critical_findings: critCount,
+          high_findings: Math.max(0, findingsCount - critCount - 2),
+          dpdp_clauses_triggered: Math.min(findingsCount, 4),
+          total_exposure_inr: band === 'block' ? 250000000 : band === 'watch' ? 80000000 : 5000000,
+          data_sources_used: ['shodan', 'hibp', 'crt.sh', 'virustotal', 'dns', 'tls'],
+          apis_queried: { shodan: false, hibp: false, virustotal: false, nuclei: false, ai: false },
+          executive_summary: `This vendor ${band === 'block' ? 'presents critical risks to your organization' : band === 'watch' ? 'shows moderate risk indicators' : 'meets security requirements'}.`,
+          recommendation: band === 'block' ? 'BLOCK — Immediate vendor access revocation required' : band === 'watch' ? 'WATCH — Enhanced monitoring recommended' : 'SAFE — Standard vendor oversight sufficient',
+        },
+      };
+    }
+
+    function renderIntelligenceReport(data) {
+      const reportEl = $('audit-intel-report');
+      const contentEl = $('audit-report-content');
+      if (!reportEl || !contentEl || !data) return;
+
+      const ir = data.intelligence_report || {};
+      const result = data.result || {};
+      const pipeline = data.pipeline || {};
+      const trust = result.trust || {};
+      const bandColor = trust.band === 'block' ? 'text-red-400' : trust.band === 'watch' ? 'text-amber-400' : 'text-emerald-400';
+      const bandBg = trust.band === 'block' ? 'bg-red-900/30 border-red-700' : trust.band === 'watch' ? 'bg-amber-900/30 border-amber-700' : 'bg-emerald-900/30 border-emerald-700';
+      const exposure = result.total_dpdp_exposure_inr || 0;
+      const exposureFmt = exposure >= 1e7 ? `₹${(exposure / 1e7).toFixed(1)}Cr` : `₹${exposure.toLocaleString()}`;
+
+      contentEl.innerHTML = `
+        <!-- Header -->
+        <div class="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <div class="text-xs text-slate-500 uppercase tracking-widest">Subject</div>
+            <div class="text-lg font-bold text-white">${ir.subject || result.vendor || '—'}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-500">Date</div>
+            <div class="text-sm text-slate-300">${ir.date ? new Date(ir.date).toLocaleString() : new Date().toLocaleString()}</div>
+          </div>
+        </div>
+
+        <!-- Trust Score -->
+        <div class="flex items-center gap-6 py-4">
+          <div class="text-center">
+            <div class="text-5xl font-black ${bandColor}">${ir.trust_score || trust.score || '—'}</div>
+            <div class="text-xs text-slate-500">/ 100</div>
+          </div>
+          <div class="flex-1">
+            <div class="inline-block px-3 py-1 rounded-full text-sm font-bold uppercase ${bandBg} border ${bandColor}">${ir.trust_band || trust.band || '—'}</div>
+            <div class="text-sm text-slate-400 mt-1">${ir.recommendation || ''}</div>
+          </div>
+        </div>
+
+        <!-- Key metrics grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-white">${ir.total_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">Total Findings</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-red-400">${ir.critical_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">Critical</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-orange-400">${ir.high_findings || 0}</div>
+            <div class="text-[10px] uppercase text-slate-500">High</div>
+          </div>
+          <div class="rounded-xl bg-slate-900 border border-slate-800 p-3 text-center">
+            <div class="text-xl font-bold text-cyan-400">${exposureFmt}</div>
+            <div class="text-[10px] uppercase text-slate-500">DPDP Exposure</div>
+          </div>
+        </div>
+
+        <!-- Data Sources -->
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Data Sources Queried</div>
+          <div class="flex flex-wrap gap-2">
+            ${(ir.data_sources_used || []).map(s => `<span class="text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">${s}</span>`).join('')}
+          </div>
+        </div>
+
+        <!-- API Status -->
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">API Integration Status</div>
+          <div class="flex flex-wrap gap-2">
+            ${Object.entries(ir.apis_queried || {}).map(([k, v]) => 
+              `<span class="text-xs px-2 py-1 rounded ${v ? 'bg-emerald-900/30 text-emerald-300 border border-emerald-700' : 'bg-slate-800 text-slate-500 border border-slate-700'}">${k}: ${v ? 'LIVE' : 'MOCK'}</span>`
+            ).join('')}
+          </div>
+        </div>
+
+        <!-- Pipeline Summary -->
+        ${pipeline.steps ? `
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Pipeline Execution (${pipeline.total_duration_ms || 0}ms total)</div>
+          <div class="space-y-1">
+            ${pipeline.steps.map(s => `
+              <div class="flex items-center gap-2 text-xs">
+                <span>${s.icon || '•'}</span>
+                <span class="text-slate-300 flex-1">${s.label}</span>
+                <span class="text-slate-500">${s.findings_count || 0} findings</span>
+                <span class="text-cyan-400 mono">${s.duration_ms}ms</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Executive Summary -->
+        <div class="border-t border-slate-800 pt-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Executive Summary</div>
+          <div class="text-sm text-slate-300 whitespace-pre-line leading-relaxed">${ir.executive_summary || result.ai_summary || '—'}</div>
+        </div>
+      `;
+
+      reportEl.classList.remove('hidden');
+    }
+
+    function exportAuditJSON() {
+      if (!lastAuditResult) { alert('Run an audit first'); return; }
+      const blob = new Blob([JSON.stringify(lastAuditResult, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vendorguard-audit-${lastAuditResult.vendor || 'unknown'}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function exportAuditPDF() {
+      if (!lastAuditResult || !lastAuditResult.result) { alert('Run an audit first'); return; }
+      const vendor = lastAuditResult.vendor || lastAuditResult.result.vendor || '';
+      if (vendor && API) {
+        window.open(`${API}/report/${encodeURIComponent(vendor)}.pdf`, '_blank');
+      } else {
+        alert('No vendor data available for PDF export');
+      }
+    }
+
+    function exportAuditZIP() {
+      if (!lastAuditResult || !lastAuditResult.result) { alert('Run an audit first'); return; }
+      const vendor = lastAuditResult.vendor || lastAuditResult.result.vendor || '';
+      if (vendor && API) {
+        window.open(`${API}/audit/${encodeURIComponent(vendor)}.zip`, '_blank');
+      } else {
+        // Fallback to frontend ZIP generation
+        generateAuditZip();
+      }
+    }
+
+    // =========================================================================
+    // LIVE THREAT ALERTS
+    // =========================================================================
+    let alertFeed = [];
+    let alertCounts = { critical: 0, high: 0, medium: 0, resolved: 0 };
+
+    const DEMO_THREATS = [
+      { severity: 'critical', title: 'Bulk data exfiltration detected', vendor: 'analytics-vendor.io', summary: '50,000 records requested in single API call from unknown IP 203.0.113.42. Gateway auto-blocked in 0.3s.', action: 'Credential quarantined + endpoint locked' },
+      { severity: 'critical', title: 'Canary token tripped on /admin/export', vendor: 'paytrust-partner.com', summary: 'Vendor-issued credential accessed canary endpoint never documented. Possible lateral movement.', action: 'Incident response initiated' },
+      { severity: 'high', title: 'Anomalous API pattern: 3x baseline', vendor: 'databridge-cloud.com', summary: 'API call volume spiked 3x over 15-minute rolling average. ML anomaly score: 0.92.', action: 'Rate limiting applied' },
+      { severity: 'high', title: 'New CVE affecting vendor stack', vendor: 'logix-crm-india.com', summary: 'CVE-2024-21762 (Fortinet FortiOS RCE, CVSS 9.8) affects vendor infrastructure. Patch status: unknown.', action: 'Vendor notified via automated alert' },
+      { severity: 'medium', title: 'TLS certificate expiring in 7 days', vendor: 'healthbuddy-partner.com', summary: 'SSL certificate for api.healthbuddy-partner.com expires 2024-02-15. Auto-renewal not configured.', action: 'Playbook task created' },
+      { severity: 'medium', title: 'Geo-anomaly: login from new country', vendor: 'shopquick-vendor.com', summary: 'Admin login from Nigeria (first time). Previous logins: India only.', action: 'Session flagged for review' },
+      { severity: 'critical', title: 'SQL injection attempt blocked', vendor: 'yahoo-legacy-services.com', summary: 'Gateway WAF detected SQLi payload in query parameter. Pattern: UNION SELECT. Source IP: 198.51.100.23.', action: 'Request blocked + IP blacklisted' },
+      { severity: 'high', title: 'Sensitive data in API response', vendor: 'equifax-analytics.com', summary: 'PII fields (email, phone, PAN) detected in unmasked API response. DLP policy violation.', action: 'Data masking applied retroactively' },
+    ];
+
+    function simulateThreatAlert() {
+      const threat = DEMO_THREATS[Math.floor(Math.random() * DEMO_THREATS.length)];
+      const alert = {
+        id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        at: new Date().toISOString(),
+        ...threat,
+        containment_seconds: (0.1 + Math.random() * 2).toFixed(1),
+      };
+      addAlertToFeed(alert);
+    }
+
+    function addAlertToFeed(alert) {
+      alertFeed.unshift(alert);
+      if (alertFeed.length > 50) alertFeed.pop();
+      alertCounts[alert.severity] = (alertCounts[alert.severity] || 0) + 1;
+      updateAlertCounters();
+      renderAlertFeed();
+    }
+
+    function updateAlertCounters() {
+      const c = $('alert-count-critical'); if (c) c.textContent = alertCounts.critical;
+      const h = $('alert-count-high'); if (h) h.textContent = alertCounts.high;
+      const m = $('alert-count-medium'); if (m) m.textContent = alertCounts.medium;
+      const r = $('alert-count-resolved'); if (r) r.textContent = alertCounts.resolved;
+    }
+
+    function renderAlertFeed() {
+      const feed = $('alert-feed');
+      if (!feed) return;
+      if (!alertFeed.length) {
+        feed.innerHTML = '<div class="text-center py-8 text-slate-500">No alerts yet.</div>';
+        return;
+      }
+      feed.innerHTML = alertFeed.map(a => {
+        const sevColors = { critical: 'border-red-700 bg-red-950/20', high: 'border-orange-700 bg-orange-950/20', medium: 'border-amber-700 bg-amber-950/20' };
+        const sevText = { critical: 'text-red-400', high: 'text-orange-400', medium: 'text-amber-400' };
+        const sc = sevColors[a.severity] || 'border-slate-700 bg-slate-900/50';
+        const st = sevText[a.severity] || 'text-slate-400';
+        const time = a.at ? new Date(a.at).toLocaleTimeString() : '';
+        return `
+          <div class="rounded-xl border ${sc} p-4 animate-fadeIn">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full ${a.severity === 'critical' ? 'bg-red-500 animate-pulse' : a.severity === 'high' ? 'bg-orange-500' : 'bg-amber-500'}"></span>
+                <span class="text-xs font-bold uppercase ${st}">${a.severity}</span>
+              </div>
+              <span class="text-[10px] text-slate-500 mono">${time}</span>
+            </div>
+            <div class="text-sm font-semibold text-slate-200 mb-1">${a.title}</div>
+            <div class="text-xs text-slate-400 mb-2">${a.summary}</div>
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] text-slate-500">Vendor: <span class="text-slate-300">${a.vendor}</span></span>
+              <span class="text-[10px] text-emerald-400">${a.action} (${a.containment_seconds}s)</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function clearAlertFeed() {
+      alertFeed = [];
+      alertCounts = { critical: 0, high: 0, medium: 0, resolved: 0 };
+      updateAlertCounters();
+      renderAlertFeed();
+    }
+
+    // =========================================================================
     // v3.3 — init extensions
     // =========================================================================
     function wireV33() {
-      // Persona switcher
-      document.querySelectorAll('.persona-chip').forEach(btn => btn.addEventListener('click', () => setPersona(btn.dataset.persona)));
+      // Persona switcher — with tooltip for non-CISO views
+      document.querySelectorAll('.persona-chip').forEach(btn => btn.addEventListener('click', () => setPersonaWithTooltip(btn.dataset.persona)));
       const savedPersona = (function() { try { return localStorage.getItem('vg_persona'); } catch { return null; } })() || 'ciso';
       setPersona(savedPersona);
 
@@ -3062,12 +4559,12 @@ This addendum governs the processing of personal data.
         if (!v) return;
         $('vendor-input').value = v;
         $('try-nudge').classList.add('hidden');
-        doScan();
+        doScanWithOverlay();
       });
       $('try-nudge-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('try-nudge-go').click(); });
 
       // QR + help
-      $('qr-btn').addEventListener('click', showQrModal);
+      $('qr-btn').addEventListener('click', showQrModalV2);
       $('help-btn').addEventListener('click', showShortcutsModal);
 
       // Keyboard shortcuts
@@ -3076,6 +4573,7 @@ This addendum governs the processing of personal data.
         const typing = tag === 'INPUT' || tag === 'TEXTAREA';
         if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) { e.preventDefault(); runAgent(); }
         if (e.key === '?' && !typing) { e.preventDefault(); showShortcutsModal(); }
+        // Removed '/' shortcut — conflicts with browser default
       });
 
       // Auto-refresh live portfolio every 45s (T20 — light-touch, still polite).
@@ -3110,14 +4608,51 @@ This addendum governs the processing of personal data.
       wireEvents();
       wireV33();
       hookBreachCountdownOnAlerts();
+
+      // Static backtest — never depends on API
+      renderStaticBacktest();
+
+      // Load company library
+      loadCompanyLibrary();
+
+      // Health check in background
+      healthCheck();
       await pingStatus();
       startSSE();
       refreshGraph().catch(() => {});
       refreshPortfolio().catch(() => {});
       refreshKPIChips().catch(() => {});
-      // lightweight KPI chip polling for the header ticker
       setInterval(() => refreshKPIChips().catch(() => {}), 15000);
+
+      // Wire download buttons
+      wireDownloadButtons();
+
+      // Start periodic alert simulation for demo effect
+      setInterval(() => {
+        if (alertFeed.length < 3) simulateThreatAlert();
+      }, 30000);
     })();
+
+    function wireDownloadButtons() {
+      // Wire playbook CSV download
+      const pbCsv = $('playbook-csv');
+      if (pbCsv) {
+        pbCsv.removeAttribute('href');
+        pbCsv.style.cursor = 'pointer';
+        pbCsv.addEventListener('click', (e) => { e.preventDefault(); generatePlaybookCsv(); });
+      }
+      // Wire report download
+      const reportDl = $('report-dl');
+      if (reportDl) {
+        reportDl.addEventListener('click', (e) => { e.preventDefault(); generateBoardPdf(); });
+      }
+      // Wire audit ZIP
+      const auditDl = $('audit-dl');
+      if (auditDl) {
+        auditDl.textContent = '⬇ Download Audit Pack (ZIP)';
+        auditDl.addEventListener('click', (e) => { e.preventDefault(); generateAuditZip(); });
+      }
+    }
   </script>
 </body>
 </html>
