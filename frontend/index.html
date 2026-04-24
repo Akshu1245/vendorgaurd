@@ -126,6 +126,64 @@
     details > summary::-webkit-details-marker { display: none; }
     details[open] .chev { transform: rotate(90deg); }
     .chev { display: inline-block; transition: transform 160ms ease; }
+
+    /* v3.3 — drop-zone for DPA PDF upload (T2) */
+    .dropzone {
+      border: 2px dashed #334155;
+      transition: all 120ms ease;
+      background: rgba(15, 23, 42, 0.4);
+    }
+    .dropzone.drag { border-color: #f59e0b; background: rgba(245,158,11,0.08); }
+
+    /* v3.3 — persona switcher (T6) */
+    .persona-chip.active { background: rgba(99,102,241,0.2); color: #c7d2fe; border-color: rgba(99,102,241,0.5); }
+
+    /* v3.3 — agent step check animation (T4) */
+    .step-running { color: #fbbf24; }
+    .step-done    { color: #34d399; }
+    .step-pending { color: #475569; }
+    .agent-step .spin { display: inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* v3.3 — breach countdown pulse (T5) */
+    .countdown-alert { animation: cd-pulse 1.8s ease-in-out infinite; }
+    @keyframes cd-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0.5); }
+      50%      { box-shadow: 0 0 0 8px rgba(244,63,94,0); }
+    }
+
+    /* v3.3 — persona-based UI visibility (T6) */
+    body[data-persona="legal"] .hide-legal { display: none !important; }
+    body[data-persona="dpo"] .hide-dpo { display: none !important; }
+    body[data-persona="ciso"] .hide-ciso { display: none !important; }
+
+    /* v3.3 — keyboard shortcut kbd style (T16) */
+    kbd.kb {
+      display: inline-block; padding: 2px 6px; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; background: #0f172a; border: 1px solid #334155; border-bottom-width: 2px;
+      border-radius: 4px; color: #cbd5e1; min-width: 18px; text-align: center;
+    }
+
+    /* v3.3 — explain tooltip (T10) */
+    .explain-btn {
+      display: inline-grid; place-items: center; width: 18px; height: 18px;
+      border-radius: 50%; background: rgba(99,102,241,0.15); color: #a5b4fc;
+      font-size: 10px; font-weight: 700; cursor: pointer;
+      border: 1px solid rgba(99,102,241,0.3);
+    }
+    .explain-btn:hover { background: rgba(99,102,241,0.3); color: #e0e7ff; }
+
+    /* v3.3 — modal shell (T1/T16/T18/T14) */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2,6,23,0.7);
+      display: grid; place-items: center; z-index: 60;
+      backdrop-filter: blur(4px);
+    }
+    .modal-card {
+      background: #0f172a; border: 1px solid #334155; border-radius: 16px;
+      max-width: 640px; width: 92%; max-height: 82vh; overflow: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -150,6 +208,10 @@
         <button id="scan-btn" class="btn-primary px-4 py-2 rounded-lg text-sm disabled:pointer-events-none">
           Scan Vendor
         </button>
+        <button id="agent-btn" class="btn-indigo px-4 py-2 rounded-lg text-sm disabled:pointer-events-none"
+                title="Run the 6-step autonomous onboarding agent for this vendor (Ctrl+Shift+A)">
+          ⚡ Autonomous Onboard
+        </button>
       </div>
 
       <!-- Integration chips -->
@@ -161,16 +223,57 @@
         <span id="selftest-chip" class="chip mono hidden clickable" title="Click to re-run rule engine self-test against benchmark DPAs">selftest: …</span>
         <span id="kpi-savings-chip" class="chip mono hidden" style="color:#fca5a5; border-color:rgba(244,63,94,0.4); background:rgba(244,63,94,0.08)" title="₹ DPDP exposure avoided via gateway blocks">₹ saved: …</span>
         <span id="kpi-blocks-chip" class="chip mono hidden" style="color:#fcd34d; border-color:rgba(245,158,11,0.4); background:rgba(245,158,11,0.08)" title="Attacks auto-contained">blocks: …</span>
-        <span class="chip mono" style="color:#6ee7b7; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.08)">v3.2.1</span>
+        <span class="chip mono" style="color:#6ee7b7; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.08)">v3.3.0</span>
       </div>
 
-      <!-- Demo mode button + badge -->
+      <!-- Persona switcher (T6) -->
+      <div class="flex items-center gap-1 border border-slate-800 rounded-lg p-0.5 bg-slate-950/40" title="Switch audience lens: CISO (default) / Legal / DPO">
+        <button data-persona="ciso"  class="persona-chip chip mono active">CISO</button>
+        <button data-persona="legal" class="persona-chip chip mono">Legal</button>
+        <button data-persona="dpo"   class="persona-chip chip mono">DPO</button>
+      </div>
+
+      <!-- Demo mode + QR + help -->
       <div class="flex items-center gap-2">
         <span id="demo-badge" class="demo-badge hidden">DEMO RUNNING…</span>
+        <button id="qr-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Public demo QR (for judges to scan your own domain)">🔗 QR</button>
+        <button id="help-btn" class="btn-ghost px-2 py-2 rounded-lg text-xs mono" title="Keyboard shortcuts (press ?)">?</button>
         <button id="demo-btn" class="btn-ghost px-3 py-2 rounded-lg text-xs mono" title="Run the scripted pitch demo (Ctrl+Shift+D)">
           ▶ Demo Mode
         </button>
       </div>
+    </div>
+    <!-- Breach countdown banner (T5) — hidden until the first gateway block -->
+    <div id="breach-countdown" class="hidden flex items-center justify-between gap-4 px-5 py-2 border-t border-slate-800 bg-rose-950/40 text-xs">
+      <div class="flex items-center gap-3">
+        <span class="badge-sev sev-critical countdown-alert">BREACH CLOCK</span>
+        <span class="text-rose-200">
+          DPB notification SLA (§8(6), 72h):
+          <span id="cd-dpb" class="mono font-bold text-rose-100">72h 00m 00s</span>
+        </span>
+        <span class="text-amber-200">
+          · CERT-In Form-A (6h directive, CERT-In 2022):
+          <span id="cd-certin" class="mono font-bold text-amber-100">5h 59m 59s</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="cd-vendor" class="text-slate-400 mono"></span>
+        <button id="cd-certin-dl" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Download auto-filled CERT-In Form-A PDF">Draft CERT-In Form-A</button>
+        <button id="cd-dismiss" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Hide the clock (alert stays in the log)">✕</button>
+      </div>
+    </div>
+
+    <!-- Sticky scan-your-own-domain nudge for expo visitors (T15) -->
+    <div id="try-nudge" class="hidden flex items-center justify-between gap-4 px-5 py-2 border-t border-slate-800 bg-indigo-950/30 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="chip" style="background:rgba(99,102,241,0.2); color:#c7d2fe; border-color:rgba(99,102,241,0.4)">TRY IT</span>
+        <span class="text-slate-300">
+          Scan <span class="text-amber-300">your company's</span> domain right now — we use only public CT / DNS / TLS (no keys needed).
+        </span>
+        <input id="try-nudge-input" type="text" placeholder="yourcompany.com" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs mono w-56 focus:outline-none focus:border-amber-400"/>
+        <button id="try-nudge-go" class="btn-safe px-3 py-1 rounded-lg text-xs">Scan</button>
+      </div>
+      <button id="try-nudge-dismiss" class="btn-ghost px-2 py-1 rounded text-[11px]" title="Hide">✕</button>
     </div>
   </header>
 
@@ -704,9 +807,20 @@
           </div>
         </div>
 
+        <!-- v3.3 Drop-zone for PDF / TXT / MD upload (T2) -->
+        <div id="contract-dropzone" class="dropzone rounded-xl p-5 text-center text-sm text-slate-400">
+          <div class="text-slate-300">📄 Drop a <span class="text-amber-300">.pdf</span> / .txt / .md vendor DPA here — or
+            <label class="text-indigo-300 cursor-pointer underline">browse files
+              <input id="contract-file-input" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown" class="hidden" />
+            </label>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-1">Parsed locally via pypdf — nothing leaves your VPC. Also accepts raw text paste below.</div>
+          <div id="contract-upload-meta" class="text-[11px] mono text-amber-300 mt-2 hidden"></div>
+        </div>
+
         <textarea id="contract-input" rows="8"
           class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mono focus:outline-none focus:border-amber-400"
-          placeholder="Paste the full Data Processing Agreement text here…"></textarea>
+          placeholder="…or paste the full Data Processing Agreement text here."></textarea>
 
         <div id="contract-summary" class="hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
           <div class="flex items-start justify-between flex-wrap gap-4">
@@ -724,6 +838,82 @@
         </div>
 
         <div id="contract-gaps" class="space-y-3"></div>
+      </section>
+
+      <!-- ====== AGENT PANEL (v3.3 · T4) ====== -->
+      <section data-panel="agent" class="panel space-y-5">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Autonomous Onboarding Agent <span class="chip mono align-middle ml-2" style="background:rgba(99,102,241,0.1); color:#a5b4fc; border-color:rgba(99,102,241,0.3)">v3.3 · NEW</span></h1>
+            <p class="text-sm text-slate-400">One click. Six deterministic primitives chained autonomously: OSINT → score → DPDP map → contract intel (optional DPA) → executive summary → remediation playbook → audit bundle. Every step's output is written to the same SQLite-backed store as a manual scan — fully DPDP-auditable.</p>
+          </div>
+          <button id="agent-run-btn" class="btn-indigo px-4 py-2 rounded-lg text-sm">▶ Run for <span id="agent-vendor-chip" class="mono ml-1">—</span></button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- Progress + steps -->
+          <div class="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-[11px] uppercase tracking-wider text-slate-400">Pipeline</div>
+              <div id="agent-status" class="text-xs mono text-slate-500">idle</div>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden mb-4">
+              <div id="agent-progress" class="h-2 bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <ol id="agent-steps" class="space-y-2 text-sm"></ol>
+          </div>
+
+          <!-- Optional DPA upload for agent -->
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
+            <div class="text-[11px] uppercase tracking-wider text-slate-400">Optional: attach vendor DPA</div>
+            <div id="agent-dropzone" class="dropzone rounded-xl p-4 text-center text-xs text-slate-400">
+              <div class="text-slate-300">📄 Drop DPA <span class="text-amber-300">.pdf</span> / .txt / .md</div>
+              <label class="text-indigo-300 cursor-pointer underline text-[11px]">browse
+                <input id="agent-file-input" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown" class="hidden" />
+              </label>
+              <div id="agent-file-meta" class="text-[11px] mono text-amber-300 mt-2 hidden"></div>
+            </div>
+            <div class="text-[11px] text-slate-500">If no DPA is attached, the contract step is skipped. Everything else still runs.</div>
+          </div>
+        </div>
+
+        <div id="agent-result" class="hidden rounded-2xl border border-emerald-900/40 bg-emerald-950/20 p-5 text-sm"></div>
+      </section>
+
+      <!-- ====== BACKTEST PANEL (v3.3 · T3) ====== -->
+      <section data-panel="backtest" class="panel space-y-5">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Real-Breach Back-Test <span class="chip mono align-middle ml-2" style="background:rgba(244,63,94,0.1); color:#fda4af; border-color:rgba(244,63,94,0.3)">India · v3.3</span></h1>
+            <p class="text-sm text-slate-400">We back-tested our rule engine against <span class="text-amber-300">three real Indian vendor-mediated breaches</span>: AIIMS Delhi 2022 (ransomware via billing vendor), BigBasket 2020 (analytics vendor leak of 20M users), MobiKwik 2021 (KYC processor exposure of ~99M records). Click a case to see exactly what VendorGuard would have flagged at onboarding — public-record-only reconstruction.</p>
+          </div>
+          <span class="chip mono" style="background:rgba(244,63,94,0.15); color:#fecdd3; border-color:rgba(244,63,94,0.4)">3 of 3 would have been blocked</span>
+        </div>
+
+        <div id="backtest-cases" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="text-xs text-slate-500 italic">loading…</div>
+        </div>
+
+        <div id="backtest-detail" class="hidden rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-4"></div>
+      </section>
+
+      <!-- ====== COMPARE PANEL (v3.3 · T9) ====== -->
+      <section data-panel="compare" class="panel space-y-5">
+        <div class="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight">Vendor Comparison <span class="chip mono align-middle ml-2" style="background:rgba(16,185,129,0.1); color:#6ee7b7; border-color:rgba(16,185,129,0.3)">v3.3</span></h1>
+            <p class="text-sm text-slate-400">Pick two vendors you've scanned to diff trust, exposure, DPDP clauses triggered, and playbook items. Your procurement team's shortlist screen.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <select id="compare-vendor-a" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mono"></select>
+          <span class="text-slate-500">vs</span>
+          <select id="compare-vendor-b" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm mono"></select>
+          <button id="compare-run-btn" class="btn-primary px-4 py-2 rounded-lg text-sm">Compare</button>
+        </div>
+
+        <div id="compare-grid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
       </section>
 
       <!-- ====== DATA FLOW MAP (v3.0) ====== -->
@@ -762,6 +952,9 @@
         </div>
       </div>
       <button id="ask-open" class="fixed right-4 bottom-4 btn-primary rounded-full w-12 h-12 shadow-lg z-30 grid place-items-center text-xl" title="Ask DPDP — press '/'">💬</button>
+
+      <!-- Generic modal mount (T1 QR / T16 shortcuts / T18 contested / T14 webhook preview) -->
+      <div id="vg-modal" class="hidden"></div>
 
     </main>
   </div>
@@ -827,8 +1020,11 @@
     // strip so judges see one clear story arc instead of 13 entries.
     // Ask DPDP stays as the floating drawer ("/" hotkey) — always available.
     const NAV_ITEMS = [
-      { id: 'executive', icon: '📊', label: 'Executive Board', sub: 'Portfolio KPIs · ₹ saved',
-        panels: [{ id: 'executive', label: 'Executive' }] },
+      { id: 'executive', icon: '📊', label: 'Executive Board', sub: 'Portfolio KPIs · ₹ saved · Compare',
+        panels: [
+          { id: 'executive', label: 'Portfolio' },
+          { id: 'compare',   label: 'Compare vendors' },
+        ] },
       { id: 'scan', icon: '🛡️', label: 'Vendor Scan', sub: 'Trust · findings · DPDP · flows',
         panels: [
           { id: 'overview', label: 'Overview' },
@@ -837,8 +1033,12 @@
           { id: 'dataflow', label: 'Data Flow' },
           { id: 'graph',    label: 'Graph'    },
         ] },
+      { id: 'agent', icon: '⚡', label: 'Autonomous Agent', sub: '6-step one-click onboarding',
+        panels: [{ id: 'agent', label: 'Agent' }] },
       { id: 'contract', icon: '📝', label: 'Contract Intel', sub: 'Layer 5 · DPA gaps + benchmark',
         panels: [{ id: 'contract', label: 'Contract' }] },
+      { id: 'backtest', icon: '🧪', label: 'Real Breach Back-test', sub: 'AIIMS · BigBasket · MobiKwik',
+        panels: [{ id: 'backtest', label: 'Back-test' }] },
       { id: 'defense', icon: '🚨', label: 'Live Defense', sub: 'Gateway + canary tripwires',
         panels: [
           { id: 'gateway', label: 'Gateway' },
@@ -894,6 +1094,9 @@
       if (panelId === 'dataflow') refreshDataflow().catch(() => {});
       if (panelId === 'contract') refreshBenchmarks().catch(() => {});
       if (panelId === 'diff') refreshDiffPanel().catch(() => {});
+      if (panelId === 'backtest') refreshBacktestCases().catch(() => {});
+      if (panelId === 'compare') refreshCompareOptions().catch(() => {});
+      if (panelId === 'agent') updateAgentVendorChip();
     }
 
     // v3.2: Ensure Remediation > Board PDF · Audit ZIP card always reflects the
@@ -2011,6 +2214,23 @@ This addendum governs the processing of personal data.
             b.textContent = '✓ copied'; setTimeout(() => b.innerHTML = '📋 Copy rewrite', 1500);
           } catch { b.textContent = 'copy failed'; }
         }));
+
+        // v3.3 — inject "explain" + "disagree" controls on each gap row (T10, T18)
+        $$('#contract-gaps > div').forEach((row, idx) => {
+          const g = gaps[idx];
+          if (!g) return;
+          const headerRow = row.querySelector('.flex.items-start.justify-between');
+          if (!headerRow) return;
+          const toolbar = document.createElement('div');
+          toolbar.className = 'flex items-center gap-1.5 ml-2';
+          toolbar.innerHTML = `
+            <span class="explain-btn" title="Explain ${esc(g.section)} via DPDP RAG" data-explain="Explain ${esc(g.section)} of the DPDP Act and why a vendor DPA should include it.">?</span>
+            <button class="btn-ghost px-2 py-0.5 rounded text-[10px]" data-contest='${esc(JSON.stringify(g, null, 2))}' title="Evidence trace you can attach to an auditor reply">disagree</button>
+          `;
+          headerRow.appendChild(toolbar);
+        });
+        wireExplainButtons($('contract-gaps'));
+        wireContestedButtons($('contract-gaps'));
       } catch (e) {
         $('contract-narrative').textContent = 'analysis failed: ' + e.message;
       } finally {
@@ -2269,12 +2489,627 @@ This addendum governs the processing of personal data.
     }
 
     // =========================================================================
+    // v3.3 — Modal helper (T1 / T14 / T16 / T18)
+    // =========================================================================
+    function openModal(title, bodyHtml, opts = {}) {
+      const m = $('vg-modal');
+      m.classList.remove('hidden');
+      m.innerHTML = `
+        <div class="modal-backdrop" data-close="1">
+          <div class="modal-card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-lg font-semibold">${esc(title)}</div>
+              <button data-close="1" class="btn-ghost px-2 py-1 rounded text-xs">✕</button>
+            </div>
+            <div>${bodyHtml}</div>
+            ${opts.footer ? `<div class="mt-4 pt-4 border-t border-slate-800">${opts.footer}</div>` : ''}
+          </div>
+        </div>
+      `;
+      m.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', (e) => {
+        if (e.target.dataset.close) closeModal();
+      }));
+    }
+    function closeModal() {
+      const m = $('vg-modal');
+      m.classList.add('hidden');
+      m.innerHTML = '';
+    }
+
+    // =========================================================================
+    // v3.3 — PDF / text upload drop-zone wiring (T2)
+    // =========================================================================
+    function wireDropzone(zoneId, inputId, onFile) {
+      const zone = $(zoneId);
+      const input = $(inputId);
+      if (!zone || !input) return;
+      const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+      ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, (e) => { stop(e); zone.classList.add('drag'); }));
+      ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, (e) => { stop(e); zone.classList.remove('drag'); }));
+      zone.addEventListener('drop', (e) => {
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) onFile(f);
+      });
+      input.addEventListener('change', () => { if (input.files && input.files[0]) onFile(input.files[0]); });
+    }
+
+    async function uploadContractForAnalysis(file) {
+      const meta = $('contract-upload-meta');
+      meta.classList.remove('hidden');
+      meta.textContent = `⏳ Parsing ${file.name} (${Math.round(file.size/1024)} KB)…`;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('polish_rewrites', 'false');
+      try {
+        const res = await fetch(`${API}/contract/analyze/upload`, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d = await res.json();
+        meta.textContent = `✓ ${d.filename} — ${d.source_kind.toUpperCase()}, ${d.word_count} words. Re-analyzing…`;
+        // Put extracted text into the shared textarea + re-use the existing
+        // analyzeContract() renderer so the upload + paste paths look identical.
+        $('contract-input').value = d.text || '';
+        await analyzeContract();
+        meta.textContent = `✓ ${d.filename} — ${d.source_kind.toUpperCase()}, ${d.word_count} words.`;
+      } catch (err) {
+        meta.textContent = `⚠ Failed to parse upload: ${err.message}`;
+      }
+    }
+
+    // =========================================================================
+    // v3.3 — Autonomous Agent panel (T4)
+    // =========================================================================
+    const AGENT_STEPS = [
+      ['osint',    '🛰', 'OSINT fan-out'],
+      ['score',    '📏', 'Trust Score'],
+      ['dpdp',     '⚖️', 'DPDP map + RAG'],
+      ['contract', '📝', 'Contract Intel'],
+      ['summary',  '🧠', 'Executive summary'],
+      ['playbook', '📋', 'Remediation playbook'],
+      ['audit',    '📦', 'Audit bundle'],
+    ];
+    let agentAttachment = null; // {file, textPromise}
+
+    function renderAgentSteps(progressMap = {}) {
+      $('agent-steps').innerHTML = AGENT_STEPS.map(([id, icon, label]) => {
+        const row = progressMap[id];
+        const cls = row?.status === 'done' ? 'step-done' : row?.status === 'running' ? 'step-running' : 'step-pending';
+        const mark = row?.status === 'done' ? '✓' : row?.status === 'running' ? `<span class="spin">⟳</span>` : '·';
+        const sub = row?.summary ? `<span class="ml-2 text-slate-400">${esc(row.summary)}</span>` : '';
+        const ms = row?.duration_ms ? `<span class="ml-2 text-[10px] text-slate-500 mono">(${row.duration_ms}ms)</span>` : '';
+        return `<li class="agent-step flex items-center gap-2 ${cls}">
+          <span class="w-5 text-center">${mark}</span>
+          <span>${icon}</span>
+          <span class="font-medium">${esc(label)}</span>
+          ${ms}${sub}
+        </li>`;
+      }).join('');
+    }
+
+    function updateAgentVendorChip() {
+      const v = ($('vendor-input').value || '').trim();
+      const el = $('agent-vendor-chip');
+      if (el) el.textContent = v || '—';
+    }
+
+    async function runAgent() {
+      const vendor = ($('vendor-input').value || '').trim().toLowerCase();
+      if (!vendor) { alert('Enter a vendor domain first.'); return; }
+      navTo('agent');
+      $('agent-result').classList.add('hidden');
+      $('agent-status').textContent = 'running…';
+      $('agent-progress').style.width = '0%';
+      const steps = {};
+      renderAgentSteps(steps);
+
+      // Optional DPA attachment — read file contents client-side and send in body.
+      let contractText = null;
+      if (agentAttachment && agentAttachment.file) {
+        try {
+          if (/\.pdf$/i.test(agentAttachment.file.name)) {
+            // Upload first to extract text via server's pypdf.
+            const fd = new FormData();
+            fd.append('file', agentAttachment.file);
+            fd.append('polish_rewrites', 'false');
+            const r = await fetch(`${API}/contract/analyze/upload`, { method: 'POST', body: fd });
+            if (r.ok) {
+              const j = await r.json();
+              contractText = `parsed_from:${agentAttachment.file.name}\n` + (j.analysis?.narrative || '') + '\n\n' + JSON.stringify(j.analysis);
+            }
+          } else {
+            contractText = await agentAttachment.file.text();
+          }
+        } catch (e) {  /* best-effort */ }
+      }
+
+      // Subscribe to SSE agent channel (via the existing /alerts/stream).
+      // Steps arrive interleaved with other events; we filter by `run_id` when we get one.
+      let runId = null;
+      let es = null;
+      try {
+        es = new EventSource(`${API}/alerts/stream`);
+        es.onmessage = (msg) => {
+          try {
+            const p = JSON.parse(msg.data);
+            if (!p || !p.step) return;
+            if (!runId && p.run_id) runId = p.run_id;
+            if (runId && p.run_id !== runId) return;
+            if (p.step === '__done__') { return; }
+            steps[p.step] = p;
+            renderAgentSteps(steps);
+            if (typeof p.progress_pct === 'number') {
+              $('agent-progress').style.width = Math.min(100, p.progress_pct) + '%';
+            }
+          } catch {}
+        };
+      } catch {}
+
+      try {
+        const res = await fetch(`${API}/agent/onboard`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ vendor, contract_text: contractText, polish_rewrites: false }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d = await res.json();
+        $('agent-status').textContent = `done in ${d.total_ms}ms`;
+        $('agent-progress').style.width = '100%';
+
+        const r = d.scan || {};
+        const t = r.trust || {};
+        const pbCounts = {
+          d7: (d.playbook?.next_7_days || []).length,
+          d30: (d.playbook?.next_30_days || []).length,
+          lh: (d.playbook?.long_horizon || []).length,
+        };
+        const contract = d.contract_analysis;
+        const contractLine = contract
+          ? `<span class="mono text-amber-300">${contract.red_count || 0}</span>R · <span class="mono text-amber-300">${contract.amber_count || 0}</span>A · <span class="mono text-emerald-300">${contract.green_count || 0}</span>G`
+          : `<span class="text-slate-500 italic">no DPA attached</span>`;
+        $('agent-result').classList.remove('hidden');
+        $('agent-result').innerHTML = `
+          <div class="text-emerald-300 font-semibold mb-2">✓ Agent complete · ${d.total_ms}ms</div>
+          <div class="grid md:grid-cols-4 gap-3 mb-3">
+            <div><div class="text-[10px] text-slate-500 uppercase">Trust</div><div class="text-2xl font-bold mono text-${t.band === 'safe' ? 'emerald' : (t.band === 'watch' ? 'amber' : 'rose')}-300">${t.score || '-'}/100</div><div class="text-xs text-slate-400">${t.band || ''}</div></div>
+            <div><div class="text-[10px] text-slate-500 uppercase">DPDP exposure</div><div class="text-2xl font-bold mono text-rose-300">${fmtINR(r.total_dpdp_exposure_inr || 0)}</div></div>
+            <div><div class="text-[10px] text-slate-500 uppercase">Findings</div><div class="text-2xl font-bold mono text-indigo-300">${(r.findings || []).length}</div></div>
+            <div><div class="text-[10px] text-slate-500 uppercase">Playbook items</div><div class="text-2xl font-bold mono text-amber-300">${pbCounts.d7 + pbCounts.d30 + pbCounts.lh}</div><div class="text-xs text-slate-400 mono">${pbCounts.d7}/${pbCounts.d30}/${pbCounts.lh}</div></div>
+          </div>
+          <div class="text-xs text-slate-300">Contract Intel: ${contractLine}</div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <a class="btn-primary px-3 py-1.5 rounded-lg text-xs" href="${API}/report/${encodeURIComponent(vendor)}.pdf" target="_blank">📄 Board PDF</a>
+            <a class="btn-safe    px-3 py-1.5 rounded-lg text-xs" href="${API}/audit/${encodeURIComponent(vendor)}.zip" target="_blank">📦 Audit ZIP</a>
+            <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs" onclick="mintAuditShare('${esc(vendor)}')">🔗 Public share link</button>
+            <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs" onclick="navTo('overview')">→ Full scan view</button>
+          </div>
+        `;
+        if (typeof lastScan !== 'undefined') { lastScan = r; }
+        ensureReportCard();
+        refreshPortfolio().catch(() => {});
+      } catch (err) {
+        $('agent-status').textContent = `error: ${err.message}`;
+      } finally {
+        if (es) { try { es.close(); } catch {} }
+      }
+    }
+
+    async function mintAuditShare(vendor) {
+      try {
+        const r = await fetch(`${API}/audit/${encodeURIComponent(vendor)}/share`, { method: 'POST' });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        openModal('Share audit bundle', `
+          <div class="text-xs text-slate-400 mb-2">Valid until <span class="mono text-amber-300">${esc(d.expires_at_iso)}</span> (${Math.round(d.ttl_seconds/3600)}h). HMAC-signed, no login required.</div>
+          <textarea readonly rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs mono">${esc(d.public_url)}</textarea>
+          <div class="mt-3 flex gap-2">
+            <button class="btn-primary px-3 py-1.5 rounded-lg text-xs" onclick="navigator.clipboard.writeText(${JSON.stringify(d.public_url)})">Copy link</button>
+            <a href="${esc(d.public_url)}" class="btn-ghost px-3 py-1.5 rounded-lg text-xs" target="_blank">Open</a>
+          </div>
+        `);
+      } catch (err) {
+        openModal('Share audit bundle', `<div class="text-rose-300 text-sm">${esc(err.message)}</div>`);
+      }
+    }
+    window.mintAuditShare = mintAuditShare;
+
+    // =========================================================================
+    // v3.3 — Real-Breach Back-test panel (T3)
+    // =========================================================================
+    async function refreshBacktestCases() {
+      const el = $('backtest-cases');
+      el.innerHTML = '<div class="text-xs text-slate-500 italic">loading…</div>';
+      try {
+        const r = await fetch(`${API}/backtest`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        el.innerHTML = d.cases.map(c => `
+          <button data-case="${esc(c.id)}" class="text-left rounded-2xl border border-slate-800 bg-slate-900/50 p-5 hover:border-amber-400 transition-colors">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-semibold">${esc(c.label)}</div>
+              <span class="badge-sev ${c.band === 'block' ? 'sev-critical' : 'sev-high'}">${esc(c.band)}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-3 gap-2 text-center">
+              <div><div class="text-[10px] text-slate-500 uppercase">Trust</div><div class="mono font-bold text-rose-300">${c.trust_score}/100</div></div>
+              <div><div class="text-[10px] text-slate-500 uppercase">Records</div><div class="mono font-bold text-indigo-300">${c.affected_records_millions}M</div></div>
+              <div><div class="text-[10px] text-slate-500 uppercase">Would block</div><div class="mono font-bold text-emerald-300">${c.would_have_been_blocked ? 'YES' : 'no'}</div></div>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-500 mono">${esc(c.incident_date)} · ${fmtINR(c.exposure_inr)}</div>
+            <div class="mt-2 text-[11px] text-indigo-300">→ Click for evidence trace</div>
+          </button>
+        `).join('');
+        el.querySelectorAll('button[data-case]').forEach(btn => {
+          btn.addEventListener('click', () => loadBacktestDetail(btn.dataset.case));
+        });
+      } catch (err) {
+        el.innerHTML = `<div class="text-xs text-rose-300">Failed to load: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function loadBacktestDetail(caseId) {
+      const el = $('backtest-detail');
+      el.classList.remove('hidden');
+      el.innerHTML = `<div class="text-xs text-slate-500">Loading ${esc(caseId)}…</div>`;
+      try {
+        const r = await fetch(`${API}/backtest/${caseId}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const refs = (d.public_references || []).map(u => `<a href="${esc(u)}" target="_blank" class="underline text-indigo-300 mr-3">source ↗</a>`).join(' ');
+        el.innerHTML = `
+          <div class="flex items-start justify-between flex-wrap gap-3">
+            <div>
+              <div class="text-lg font-bold">${esc(d.label)}</div>
+              <div class="text-xs text-slate-400 mt-1">${esc(d.one_liner)}</div>
+              <div class="mt-2 text-[11px]">${refs}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 text-center">
+              <div><div class="text-[10px] text-slate-500 uppercase">Trust</div><div class="text-xl mono font-bold text-rose-300">${d.trust.score}</div></div>
+              <div><div class="text-[10px] text-slate-500 uppercase">₹ exposure</div><div class="text-xl mono font-bold text-rose-300">${fmtINR(d.exposure_inr_case_ceiling)}</div></div>
+              <div><div class="text-[10px] text-slate-500 uppercase">Outcome</div><div class="text-xl mono font-bold text-emerald-300">BLOCKED</div></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">What VendorGuard would have flagged</div>
+            <ul class="space-y-2">
+              ${d.findings.map(f => `
+                <li class="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="src-chip src-${esc(String(f.source).replace('.','').replace('-',''))}">${esc(f.source)}</span>
+                    <span class="badge-sev sev-${esc(f.severity)}">${esc(f.severity)}</span>
+                    <span class="mono text-amber-300">${esc(f.clause || '')}</span>
+                    <span class="text-slate-200 font-medium flex-1">${esc(f.title)}</span>
+                  </div>
+                  <div class="text-slate-400">${esc(f.detail)}</div>
+                  ${f.rag_quote ? `<div class="mt-2 text-[11px] italic text-slate-300 border-l-2 border-amber-400 pl-2">"${esc(f.rag_quote.slice(0, 220))}…" <span class="not-italic text-slate-500">— ${esc(f.rag_citation || '')}</span></div>` : ''}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+
+          <div class="text-sm text-slate-200 bg-emerald-950/30 border border-emerald-900/40 rounded-xl p-4">
+            ${esc(d.outcome_narrative)}
+          </div>
+
+          <div class="text-[10px] text-slate-500 italic border-t border-slate-800 pt-3">${esc(d.disclaimer)}</div>
+        `;
+      } catch (err) {
+        el.innerHTML = `<div class="text-xs text-rose-300">Failed: ${esc(err.message)}</div>`;
+      }
+    }
+
+    // =========================================================================
+    // v3.3 — Compare Vendors panel (T9)
+    // =========================================================================
+    async function refreshCompareOptions() {
+      try {
+        const r = await fetch(`${API}/vendors`);
+        if (!r.ok) return;
+        const d = await r.json();
+        const vendors = (d && d.vendors) || d || [];
+        const opts = vendors.map(v => `<option value="${esc(v.vendor || v)}">${esc(v.vendor || v)}</option>`).join('');
+        const a = $('compare-vendor-a'); const b = $('compare-vendor-b');
+        if (!a || !b) return;
+        a.innerHTML = opts || '<option value="">no scans yet</option>';
+        b.innerHTML = opts || '<option value="">no scans yet</option>';
+        // default: A = last scan, B = 2nd most recent
+        if (vendors.length >= 2) {
+          a.value = vendors[0].vendor || vendors[0];
+          b.value = vendors[1].vendor || vendors[1];
+        }
+      } catch {}
+    }
+
+    async function runCompare() {
+      const va = $('compare-vendor-a').value; const vb = $('compare-vendor-b').value;
+      if (!va || !vb || va === vb) { alert('Pick two different scanned vendors.'); return; }
+      const grid = $('compare-grid');
+      grid.classList.remove('hidden');
+      grid.innerHTML = `<div class="col-span-2 text-xs text-slate-500">Loading ${esc(va)} vs ${esc(vb)}…</div>`;
+      try {
+        const [da, db] = await Promise.all([
+          fetch(`${API}/scan/${encodeURIComponent(va)}`).then(r => r.json()),
+          fetch(`${API}/scan/${encodeURIComponent(vb)}`).then(r => r.json()),
+        ]);
+        grid.innerHTML = [da, db].map((d, i) => renderCompareCard(d, i === 0 ? va : vb)).join('');
+      } catch (err) {
+        grid.innerHTML = `<div class="col-span-2 text-xs text-rose-300">Failed: ${esc(err.message)}</div>`;
+      }
+    }
+
+    function renderCompareCard(d, fallbackName) {
+      const scan = (d && (d.scan || d)) || {};
+      const t = scan.trust || {};
+      const findings = scan.findings || [];
+      const dpdp = scan.dpdp || [];
+      const exposure = scan.total_dpdp_exposure_inr || 0;
+      const clauses = Array.from(new Set(dpdp.map(m => m.clause))).sort();
+      const name = scan.vendor || fallbackName;
+      return `
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="text-sm font-semibold mono">${esc(name)}</div>
+            <span class="badge-sev sev-${t.band === 'safe' ? 'low' : (t.band === 'watch' ? 'medium' : 'critical')}">${esc(t.band || '?')}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div><div class="text-[10px] text-slate-500">Trust</div><div class="text-2xl mono font-bold">${t.score ?? '-'}</div></div>
+            <div><div class="text-[10px] text-slate-500">Findings</div><div class="text-2xl mono font-bold text-indigo-300">${findings.length}</div></div>
+            <div><div class="text-[10px] text-slate-500">Exposure</div><div class="text-2xl mono font-bold text-rose-300">${fmtINR(exposure)}</div></div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase text-slate-500 mb-1">DPDP clauses triggered</div>
+            <div class="flex flex-wrap gap-1">${clauses.map(c => `<span class="chip mono">${esc(c)}</span>`).join('')}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // v3.3 — Breach Countdown (T5)
+    // =========================================================================
+    let breachStartedAt = null;
+    let breachTimerHandle = null;
+    function startBreachCountdown(vendor) {
+      if (!breachStartedAt) breachStartedAt = Date.now();
+      const banner = $('breach-countdown');
+      banner.classList.remove('hidden');
+      if (vendor) $('cd-vendor').textContent = vendor;
+      if (breachTimerHandle) return;
+      const tick = () => {
+        const elapsedSec = Math.floor((Date.now() - breachStartedAt) / 1000);
+        const dpbRem = Math.max(0, 72 * 3600 - elapsedSec);
+        const certinRem = Math.max(0, 6 * 3600 - elapsedSec);
+        $('cd-dpb').textContent    = fmtDur(dpbRem);
+        $('cd-certin').textContent = fmtDur(certinRem);
+      };
+      tick();
+      breachTimerHandle = setInterval(tick, 1000);
+    }
+    function stopBreachCountdown() {
+      if (breachTimerHandle) clearInterval(breachTimerHandle);
+      breachTimerHandle = null;
+      breachStartedAt = null;
+      $('breach-countdown').classList.add('hidden');
+    }
+    function fmtDur(s) {
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const ss = s % 60;
+      return `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+    }
+
+    // =========================================================================
+    // v3.3 — Persona switcher (T6)
+    // =========================================================================
+    function setPersona(p) {
+      document.body.setAttribute('data-persona', p);
+      document.querySelectorAll('.persona-chip').forEach(el => el.classList.toggle('active', el.dataset.persona === p));
+      try { localStorage.setItem('vg_persona', p); } catch {}
+    }
+
+    // =========================================================================
+    // v3.3 — Explain-this tooltip (T10)  &  Contested verdict modal (T18)
+    // =========================================================================
+    function wireExplainButtons(root) {
+      (root || document).querySelectorAll('[data-explain]').forEach(el => {
+        if (el.__wired) return; el.__wired = true;
+        el.addEventListener('click', async () => {
+          const q = el.dataset.explain;
+          openModal('Explain this via DPDP RAG', `<div class="text-xs text-slate-400">Asking the DPDP Act RAG retriever…</div>`);
+          try {
+            const r = await fetch(`${API}/rag/ask`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ query: q }),
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+            const cites = (d.citations || []).map(c => `<div class="text-[11px] mono text-amber-300 mt-2">${esc(c.section || '')} · Gazette p.${esc(String(c.page || '?'))}</div><div class="text-xs italic text-slate-200">"${esc((c.excerpt || '').slice(0, 280))}…"</div>`).join('');
+            openModal('Explain this via DPDP RAG', `
+              <div class="text-xs text-slate-400 mb-2">Q: <span class="text-slate-200">${esc(q)}</span></div>
+              <div class="text-sm text-slate-200 whitespace-pre-line">${esc(d.answer || '')}</div>
+              <div class="mt-3 pt-3 border-t border-slate-800">${cites}</div>
+            `);
+          } catch (err) {
+            openModal('Explain this via DPDP RAG', `<div class="text-rose-300">${esc(err.message)}</div>`);
+          }
+        });
+      });
+    }
+
+    function wireContestedButtons(root) {
+      (root || document).querySelectorAll('[data-contest]').forEach(el => {
+        if (el.__wired) return; el.__wired = true;
+        el.addEventListener('click', () => {
+          const payload = el.dataset.contest;
+          openModal('Evidence trace (shareable with auditor)', `
+            <div class="text-[11px] text-slate-400 mb-2">This is the exact keyword / offset / snippet trace our rule engine produced. Attach this JSON to your counter-reply if you disagree with the verdict — your auditor can reproduce it with a single curl.</div>
+            <textarea readonly rows="14" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-[11px] mono">${esc(payload)}</textarea>
+            <div class="mt-3 flex gap-2">
+              <button class="btn-primary px-3 py-1.5 rounded-lg text-xs" onclick="navigator.clipboard.writeText(${JSON.stringify(payload)})">Copy JSON</button>
+            </div>
+          `);
+        });
+      });
+    }
+
+    // (No duplicate renderContractGap — we inject explain/contest via post-render wiring below.)
+
+    // =========================================================================
+    // v3.3 — QR / shortcut modals (T1, T16)
+    // =========================================================================
+    function showQrModal() {
+      const here = location.origin + location.pathname;
+      // No external dep: we use a lightweight QR generator via Google Charts image fallback.
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(here)}`;
+      openModal('Share this demo · QR + link', `
+        <div class="flex items-center gap-5">
+          <img src="${esc(qrUrl)}" alt="demo QR" class="rounded-lg border border-slate-700 bg-white" />
+          <div class="flex-1 text-xs text-slate-300 space-y-2">
+            <div class="text-sm font-semibold text-amber-300">Put this QR on your final slide.</div>
+            <div>Any judge with a phone gets a live, no-login dashboard in 3 seconds.</div>
+            <textarea readonly rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-[11px] mono">${esc(here)}</textarea>
+            <div class="text-[11px] text-slate-500">For a public demo, host this page at e.g. <span class="text-amber-300 mono">vendorguard.vercel.app</span> and point it at your Fly.io backend via <span class="text-indigo-300 mono">window.VG_API</span>.</div>
+            <button class="btn-primary px-3 py-1.5 rounded-lg text-xs" onclick="navigator.clipboard.writeText(${JSON.stringify(here)})">Copy URL</button>
+          </div>
+        </div>
+      `);
+    }
+
+    function showShortcutsModal() {
+      openModal('Keyboard shortcuts', `
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div class="flex items-center justify-between"><span>Open Ask DPDP drawer</span><kbd class="kb">/</kbd></div>
+          <div class="flex items-center justify-between"><span>Close drawer / modal</span><kbd class="kb">Esc</kbd></div>
+          <div class="flex items-center justify-between"><span>Run scripted demo</span><span><kbd class="kb">Ctrl</kbd>+<kbd class="kb">Shift</kbd>+<kbd class="kb">D</kbd></span></div>
+          <div class="flex items-center justify-between"><span>Run autonomous agent</span><span><kbd class="kb">Ctrl</kbd>+<kbd class="kb">Shift</kbd>+<kbd class="kb">A</kbd></span></div>
+          <div class="flex items-center justify-between"><span>Re-run rule-engine selftest</span><span>click <span class="chip mono">selftest:</span> chip</span></div>
+          <div class="flex items-center justify-between"><span>Show this legend</span><kbd class="kb">?</kbd></div>
+          <div class="flex items-center justify-between"><span>Scan current vendor</span><kbd class="kb">Enter</kbd> in domain input</div>
+          <div class="flex items-center justify-between"><span>Cycle persona</span><span>click <span class="chip mono">CISO/Legal/DPO</span></span></div>
+        </div>
+      `);
+    }
+
+    // =========================================================================
+    // v3.3 — Slack/Teams preview (T14)
+    // =========================================================================
+    function showWebhookPreview(vendor, title, exposure) {
+      const body = {
+        text: `:rotating_light: *VendorGuard alert* — ${title}`,
+        blocks: [
+          { type: 'header', text: { type: 'plain_text', text: '🚨 VendorGuard · auto-contained' } },
+          { type: 'section', fields: [
+            { type: 'mrkdwn', text: `*Vendor*\n\`${vendor}\`` },
+            { type: 'mrkdwn', text: `*DPDP exposure*\n${fmtINR(exposure || 0)}` },
+            { type: 'mrkdwn', text: `*Clause*\n§8(5) Reasonable safeguards` },
+            { type: 'mrkdwn', text: `*Contained*\n< 100 ms (IsolationForest + policy)` },
+          ] },
+          { type: 'actions', elements: [
+            { type: 'button', text: { type: 'plain_text', text: 'Open audit ZIP' }, url: '…' },
+            { type: 'button', text: { type: 'plain_text', text: 'View board PDF' }, url: '…' },
+          ]},
+        ],
+      };
+      openModal('What ships to Slack / Teams / PagerDuty', `
+        <div class="text-xs text-slate-400 mb-2">Set <span class="mono text-amber-300">ALERT_WEBHOOK_URL</span> to any JSON-POST target (Slack incoming webhook, MS Teams connector, Zapier hook, PagerDuty events API). No per-channel SDK needed.</div>
+        <pre class="text-[11px] bg-slate-950 border border-slate-800 rounded p-3 whitespace-pre-wrap">${esc(JSON.stringify(body, null, 2))}</pre>
+      `);
+    }
+
+    // =========================================================================
+    // v3.3 — init extensions
+    // =========================================================================
+    function wireV33() {
+      // Persona switcher
+      document.querySelectorAll('.persona-chip').forEach(btn => btn.addEventListener('click', () => setPersona(btn.dataset.persona)));
+      const savedPersona = (function() { try { return localStorage.getItem('vg_persona'); } catch { return null; } })() || 'ciso';
+      setPersona(savedPersona);
+
+      // Agent
+      $('agent-btn').addEventListener('click', runAgent);
+      $('agent-run-btn').addEventListener('click', runAgent);
+      $('vendor-input').addEventListener('input', updateAgentVendorChip);
+      updateAgentVendorChip();
+
+      // Contract upload drop-zone
+      wireDropzone('contract-dropzone', 'contract-file-input', uploadContractForAnalysis);
+      wireDropzone('agent-dropzone', 'agent-file-input', (file) => {
+        agentAttachment = { file };
+        const el = $('agent-file-meta');
+        el.classList.remove('hidden');
+        el.textContent = `✓ ${file.name} (${Math.round(file.size/1024)} KB) — will be attached to the next agent run.`;
+      });
+
+      // Compare
+      $('compare-run-btn').addEventListener('click', runCompare);
+
+      // Countdown
+      $('cd-dismiss').addEventListener('click', stopBreachCountdown);
+      $('cd-certin-dl').addEventListener('click', () => {
+        const v = $('cd-vendor').textContent.trim() || (typeof lastScan !== 'undefined' && lastScan?.vendor) || '';
+        if (v) window.open(`${API}/report/${encodeURIComponent(v)}.certin.pdf`, '_blank');
+      });
+
+      // Try nudge
+      const shown = (function() { try { return sessionStorage.getItem('vg_nudge_hidden'); } catch { return null; } })();
+      if (!shown) {
+        setTimeout(() => $('try-nudge').classList.remove('hidden'), 3500);
+      }
+      $('try-nudge-dismiss').addEventListener('click', () => {
+        $('try-nudge').classList.add('hidden');
+        try { sessionStorage.setItem('vg_nudge_hidden', '1'); } catch {}
+      });
+      $('try-nudge-go').addEventListener('click', () => {
+        const v = $('try-nudge-input').value.trim();
+        if (!v) return;
+        $('vendor-input').value = v;
+        $('try-nudge').classList.add('hidden');
+        doScan();
+      });
+      $('try-nudge-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('try-nudge-go').click(); });
+
+      // QR + help
+      $('qr-btn').addEventListener('click', showQrModal);
+      $('help-btn').addEventListener('click', showShortcutsModal);
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        const tag = (document.activeElement && document.activeElement.tagName) || '';
+        const typing = tag === 'INPUT' || tag === 'TEXTAREA';
+        if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) { e.preventDefault(); runAgent(); }
+        if (e.key === '?' && !typing) { e.preventDefault(); showShortcutsModal(); }
+      });
+
+      // Auto-refresh live portfolio every 45s (T20 — light-touch, still polite).
+      setInterval(() => refreshPortfolio().catch(() => {}), 45000);
+    }
+
+    // (fmtINR is already defined globally near the top — no redeclaration needed.)
+
+    // When the gateway emits a block alert, kick off the breach countdown.
+    // The original code publishes an `alerts` event on SSE — we piggyback.
+    function hookBreachCountdownOnAlerts() {
+      // Wrap the existing startSSE listener's handler if any; we just listen again.
+      try {
+        const es = new EventSource(`${API}/alerts/stream`);
+        es.onmessage = (msg) => {
+          try {
+            const p = JSON.parse(msg.data);
+            if (p && p.action_taken && /block/i.test(p.action_taken)) {
+              startBreachCountdown(p.vendor);
+            }
+          } catch {}
+        };
+      } catch {}
+    }
+
+    // =========================================================================
     // Init
     // =========================================================================
     (async function init() {
       renderSidebar();
       navTo('executive');
       wireEvents();
+      wireV33();
+      hookBreachCountdownOnAlerts();
       await pingStatus();
       startSSE();
       refreshGraph().catch(() => {});

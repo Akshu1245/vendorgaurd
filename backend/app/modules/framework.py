@@ -21,8 +21,14 @@ _PII_BY_TAG: dict[str, list[str]] = _RAW["pii_categories_by_vendor_tag"]
 
 
 def crosswalk_for(section: str) -> dict[str, list[str]]:
-    """Return {iso27001: [...], soc2: [...], nist_csf: [...]} for a DPDP section."""
-    return _CROSSWALK.get(section, {"iso27001": [], "soc2": [], "nist_csf": []})
+    """Return the full crosswalk for a DPDP section.
+
+    Keys: iso27001, soc2, nist_csf, sebi_cscrf, rbi_itgf — the global (ISO /
+    SOC2 / NIST) **and** India-specific (SEBI CSCRF / RBI IT Governance
+    Framework) control IDs that map to that DPDP clause.
+    """
+    empty = {"iso27001": [], "soc2": [], "nist_csf": [], "sebi_cscrf": [], "rbi_itgf": []}
+    return _CROSSWALK.get(section, empty)
 
 
 def frameworks_catalog() -> dict[str, str]:
