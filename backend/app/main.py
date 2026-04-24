@@ -312,6 +312,9 @@ async def audit_pipeline(vendor: str) -> dict:
         "total_dpdp_exposure_inr": exposure,
     }
     await store.save_scan(vendor, resp)
+    events.publish("scans", {"vendor": vendor, "trust": score.model_dump(), "exposure_inr": exposure})
+    metrics.inc("vendorguard_scans_total", band=score.band)
+    metrics.inc("vendorguard_findings_total", band=score.band, value=len(merged))
 
     return {
         "vendor": vendor,
