@@ -206,15 +206,21 @@
     @keyframes status-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
     .status-loading { animation: status-pulse 1.5s ease-in-out infinite; }
 
+    /* Trust score flash animation */
+    @keyframes scoreFlash { 0%{box-shadow:0 0 0 0 rgba(245,158,11,0.6)} 50%{box-shadow:0 0 40px 10px rgba(245,158,11,0.3)} 100%{box-shadow:0 0 0 0 rgba(245,158,11,0)} }
+    .score-flash { animation: scoreFlash 1.5s ease-out; }
+
     /* Mobile responsiveness */
     @media (max-width: 768px) {
       .flex.items-center.gap-4.px-5.py-3 { flex-wrap: wrap; }
       aside { display: none !important; }
       main { padding: 12px !important; }
-      #vendor-input { min-width: 0 !important; }
+      #vendor-input { min-width: 0 !important; width: 100% !important; }
       .overflow-x-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       table { min-width: 600px; }
       .status-strip-mobile { display: flex !important; flex-wrap: wrap; gap: 4px; }
+      #scan-btn, #agent-btn { width: 100%; }
+      .flex-1.flex.items-center.gap-2 { flex-wrap: wrap; }
     }
 
     /* v3.3 — keyboard shortcut kbd style (T16) */
@@ -486,7 +492,7 @@
           </div>
         </div>
         <div id="findings-list" class="space-y-3">
-          <div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to populate findings.</div>
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">🔍</div><div class="empty-text">Run a scan above to populate OSINT findings</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
       </section>
 
@@ -503,7 +509,7 @@
           </div>
         </div>
         <div id="dpdp-list" class="space-y-2">
-          <div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to see mapped clauses.</div>
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Run a scan above to see DPDP clause mappings with ₹ liability</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
         <div class="pt-2 flex gap-2">
           <button id="dpdp-csv-dl" class="btn-ghost inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm" onclick="generateDpdpCsv()">
@@ -570,7 +576,7 @@
               <span id="sse-chip" class="chip mono">stream: …</span>
             </div>
             <div id="alerts-list" class="mt-3 space-y-3 max-h-[520px] overflow-y-auto scroll-fade pr-1">
-              <div class="text-sm text-slate-500 italic">No alerts yet — activate the gateway and simulate an attack.</div>
+              <div class="empty-state"><div class="empty-icon">🛡️</div><div class="empty-text">Activate the gateway and simulate an attack to see live alerts</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
             </div>
           </div>
 
@@ -627,6 +633,11 @@
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-2">
           <div id="graph" class="rounded-lg bg-slate-950"></div>
+          <div id="graph-placeholder" class="text-center py-8 text-slate-500">
+            <div class="text-3xl mb-2">🌐</div>
+            <div class="text-sm">Scan vendors to add nodes. Edge color = risk band.</div>
+            <button class="btn-ghost px-3 py-1 rounded text-xs mt-2" onclick="activateDemoMode()">Try Demo Mode</button>
+          </div>
         </div>
         <div class="flex items-center justify-between flex-wrap gap-2 text-xs">
           <div class="flex items-center gap-4 text-slate-400">
@@ -669,8 +680,7 @@
           <p class="text-sm text-slate-400">A one-click PDF you can hand to a board meeting. ReportLab-rendered, grounded in the DPDP Act gazette.</p>
         </div>
         <div id="report-empty" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-          <div class="text-4xl mb-2">📄</div>
-          Run a scan first — then you can download a board-ready PDF for that vendor.
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📄</div><div class="empty-text">Run a scan first — then download a board-ready PDF for that vendor</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
         <div id="report-card" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-4 hidden">
           <div class="flex items-start justify-between flex-wrap gap-3">
@@ -877,8 +887,7 @@
           </div>
         </div>
         <div id="playbook-empty" class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-          <div class="text-4xl mb-2">📋</div>
-          Scan a vendor first — the playbook builds off the latest scan.
+          <div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Scan a vendor first — the playbook builds off the latest scan</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
         </div>
         <div id="playbook-card" class="hidden space-y-4">
           <div id="playbook-tabs" class="flex gap-2 text-xs">
@@ -908,7 +917,7 @@
         <div id="contract-benchmarks" class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
           <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Benchmark ledger · click to load a canned DPA, then Analyze</div>
           <div id="contract-benchmark-chips" class="flex flex-wrap gap-2">
-            <span class="text-xs text-slate-600 italic">loading…</span>
+            <span class="text-xs text-slate-600 italic status-loading">Connecting to benchmark ledger…</span>
           </div>
         </div>
 
@@ -1037,7 +1046,7 @@
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 overflow-x-auto">
           <div id="dataflow-grid" class="min-w-[720px]">
-            <div class="text-sm text-slate-500 italic">Scan vendors first to populate the grid.</div>
+            <div class="empty-state"><div class="empty-icon">🗂️</div><div class="empty-text">Scan vendors first to populate the data flow grid</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>
           </div>
         </div>
       </section>
@@ -1116,16 +1125,25 @@
     };
 
     async function api(path, opts = {}) {
-      const r = await fetch(API + path, {
-        headers: {'Content-Type': 'application/json'},
-        ...opts,
-      });
-      if (!r.ok) {
-        let body = '';
-        try { body = await r.text(); } catch {}
-        throw new Error(`${path} → HTTP ${r.status}${body ? ': ' + body.slice(0,120) : ''}`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      try {
+        const r = await fetch(API + path, {
+          headers: {'Content-Type': 'application/json'},
+          signal: controller.signal,
+          ...opts,
+        });
+        clearTimeout(timeout);
+        if (!r.ok) {
+          throw new Error(`Request failed (${r.status}). The backend may still be waking up.`);
+        }
+        return r.json();
+      } catch (e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') throw new Error('Request timed out after 60s. Try Demo Mode while the backend wakes up.');
+        if (e.message.includes('Request failed')) throw e;
+        throw new Error('Could not reach the backend. Try Demo Mode while you wait.');
       }
-      return r.json();
     }
 
     const sleep = (ms) => new Promise(res => setTimeout(res, ms));
@@ -1755,9 +1773,11 @@ Cite: ${m.rag_citation || ''}`;
     // =========================================================================
     function startSSE() {
       const chip = $('sse-chip');
+      let connected = false;
       try {
         const es = new EventSource(`${API}/alerts/stream`);
         es.onopen = () => {
+          connected = true;
           chip.textContent = 'stream: live';
           chip.style.color = '#6ee7b7';
           chip.style.borderColor = 'rgba(16,185,129,0.4)';
@@ -1775,8 +1795,21 @@ Cite: ${m.rag_citation || ''}`;
             if (obj && obj.severity && obj.title) appendAlert(obj);
           } catch {}
         };
+        // After 15s if not connected, mark offline
+        setTimeout(() => {
+          if (!connected) {
+            es.close();
+            chip.textContent = 'stream: offline';
+            chip.style.color = '#fda4af';
+            chip.style.borderColor = 'rgba(244,63,94,0.4)';
+            chip.style.background = 'rgba(244,63,94,0.08)';
+          }
+        }, 15000);
       } catch {
-        chip.textContent = 'stream: unavailable';
+        chip.textContent = 'stream: offline';
+        chip.style.color = '#fda4af';
+        chip.style.borderColor = 'rgba(244,63,94,0.4)';
+        chip.style.background = 'rgba(244,63,94,0.08)';
       }
     }
 
@@ -1848,6 +1881,8 @@ Cite: ${m.rag_citation || ''}`;
     async function refreshGraph() {
       let g = { nodes: [], edges: [] };
       try { g = await api('/graph'); } catch { return; }
+      const ph = $('graph-placeholder');
+      if (ph && g.nodes.length > 0) ph.classList.add('hidden');
       const elements = [
         ...g.nodes.map(n => ({
           data: {
@@ -2652,8 +2687,12 @@ This addendum governs the processing of personal data.
       $('ai-summary').textContent = 'Run a scan to generate a board-ready risk summary.';
       $('exposure-total').textContent = '—';
       $('scan-meta').textContent = '';
-      $('findings-list').innerHTML = '<div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to populate findings.</div>';
-      $('dpdp-list').innerHTML = '<div class="text-sm text-slate-500 italic">No scan yet — scan a vendor to see mapped clauses.</div>';
+      $('findings-list').innerHTML = '<div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">🔍</div><div class="empty-text">Run a scan above to populate OSINT findings</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>';
+      $('dpdp-list').innerHTML = '<div class="empty-state"><div class="empty-arrow">↑</div><div class="empty-icon">📋</div><div class="empty-text">Run a scan above to see DPDP clause mappings with ₹ liability</div><div class="empty-cta"><button class="btn-ghost px-3 py-1 rounded text-xs" onclick="activateDemoMode()">Try Demo Mode</button></div></div>';
+      // Restore graph placeholder
+      const gph = $('graph-placeholder');
+      if (gph) gph.classList.remove('hidden');
+      if (cy) { cy.destroy(); cy = null; }
       $('dpdp-total').textContent = '₹0';
       setGatewayActiveChip(false);
       $('gw-vendor-badge').textContent = '—';
@@ -2742,6 +2781,8 @@ This addendum governs the processing of personal data.
     }
 
     function renderStaticGraph(nodes, edges) {
+      const ph = $('graph-placeholder');
+      if (ph) ph.classList.add('hidden');
       const elements = [
         ...nodes.map(n => ({ data: { id: n.id, label: n.kind === 'company' ? n.label : `${n.label}\n${n.score || ''}`, kind: n.kind, band: n.band, score: n.score } })),
         ...edges.map(e => ({ data: { id: `${e.source}->${e.target}`, source: e.source, target: e.target, severity: e.severity, exposure: e.exposure_inr } })),
@@ -2865,9 +2906,12 @@ This addendum governs the processing of personal data.
         pushVendorHistory(vendor);
         refreshGraph().catch(() => {});
 
-        // Auto-scroll to trust score and navigate
+        // Auto-scroll to trust score and flash highlight
         navTo('overview');
-        $('score-ring').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const scoreEl = $('score-ring');
+        scoreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scoreEl.classList.add('score-flash');
+        setTimeout(() => scoreEl.classList.remove('score-flash'), 1500);
 
         // Update agent CTA
         const agentBtn = $('agent-run-btn');
