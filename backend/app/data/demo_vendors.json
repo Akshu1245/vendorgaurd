@@ -547,5 +547,79 @@
         "tag": "cross_border_transfer"
       }
     ]
+  },
+  "apple-enterprise-vendor.com": {
+    "label": "Enterprise hardware & services vendor — strong security posture (SAFE)",
+    "category": "strong",
+    "findings": [
+      {
+        "id": "ae-crt-1",
+        "source": "crt.sh",
+        "title": "6 subdomains in CT logs (all production, well-managed)",
+        "description": "Minimal CT log footprint. All entries are active production hosts with valid certificates.",
+        "severity": "low",
+        "evidence": {"subdomains": 6, "stale": 0, "internal_exposed": false},
+        "tag": "exposed_pii_endpoint"
+      },
+      {
+        "id": "ae-dns-1",
+        "source": "dns",
+        "title": "DMARC policy is 'reject' with RUA reporting — excellent",
+        "description": "SPF, DKIM, DMARC all configured with p=reject and aggregate reporting enabled.",
+        "severity": "low",
+        "evidence": {"spf": "v=spf1 include:_spf.apple.com -all", "dmarc": "reject", "dkim": true, "rua": true},
+        "tag": "weak_tls"
+      }
+    ]
+  },
+  "tcs-outsource-vendor.com": {
+    "label": "IT outsourcing vendor — mixed security posture (mid-level)",
+    "findings": [
+      {
+        "id": "tc-hibp-1",
+        "source": "hibp",
+        "title": "5 employee accounts in breach corpora",
+        "description": "dev@tcs-outsource-vendor.com and 4 others found in LinkedIn 2021 and Collection#1.",
+        "severity": "high",
+        "evidence": {"breaches": ["LinkedIn 2021", "Collection#1"], "count": 5},
+        "tag": "leaked_credentials"
+      },
+      {
+        "id": "tc-tls-1",
+        "source": "tls",
+        "title": "TLS 1.1 still negotiated on staging endpoint",
+        "description": "staging-api.tcs-outsource-vendor.com allows TLS 1.1 connections. Deprecated by RFC 8996.",
+        "severity": "medium",
+        "evidence": {"min_tls": "1.1", "endpoint": "staging-api"},
+        "tag": "weak_tls"
+      },
+      {
+        "id": "tc-crt-1",
+        "source": "crt.sh",
+        "title": "22 subdomains in CT logs — 4 stale internal hosts",
+        "description": "dev-portal.*, internal-wiki.*, test-jenkins.*, old-monitoring.* still resolve and return HTTP 200.",
+        "severity": "medium",
+        "evidence": {"subdomains": 22, "stale": 4, "internal_exposed": true},
+        "tag": "exposed_pii_endpoint"
+      },
+      {
+        "id": "tc-dpdp-1",
+        "source": "dpdp-rule",
+        "title": "Cross-border transfer to multiple jurisdictions (§16)",
+        "description": "Service delivery from offices in India, US, UK, Singapore without unified DPIA.",
+        "severity": "high",
+        "evidence": {"regions": ["us-east-1", "eu-west-1", "ap-southeast-1"], "dpia_filed": false},
+        "tag": "cross_border_transfer"
+      },
+      {
+        "id": "tc-dpdp-2",
+        "source": "dpdp-rule",
+        "title": "Sub-processor chain not disclosed (§8(4))",
+        "description": "Primary vendor sub-contracts to 3 undisclosed sub-processors without data principal notification.",
+        "severity": "medium",
+        "evidence": {"sub_processors": 3, "disclosed": false},
+        "tag": "missing_dpa"
+      }
+    ]
   }
 }

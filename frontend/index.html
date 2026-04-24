@@ -37,6 +37,47 @@
     .glow-gold { text-shadow: 0 0 24px rgba(234,179,8,0.25); }
     .scroll-fade { mask-image: linear-gradient(to bottom, black 85%, transparent); }
 
+    /* Loading skeleton animation */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, rgba(30,41,59,0.5) 25%, rgba(51,65,85,0.5) 50%, rgba(30,41,59,0.5) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+      border-radius: 8px;
+    }
+
+    /* Fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+
+    /* Progress bar animation */
+    @keyframes progressPulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+    .progress-pulse { animation: progressPulse 1.5s ease-in-out infinite; }
+
+    /* Slide-in for alerts */
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .animate-slideIn { animation: slideInRight 0.4s ease-out; }
+
+    /* Score counter animation */
+    @keyframes countUp {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-countUp { animation: countUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
     /* Sidebar active indicator */
     .nav-btn {
       border-left: 3px solid transparent;
@@ -765,6 +806,7 @@
           <button onclick="quickAudit('equifax-analytics.com')" class="text-xs px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800 hover:bg-red-900/60">Equifax (Breached)</button>
           <button onclick="quickAudit('google-cloud-vendor.com')" class="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60">Google (Strong)</button>
           <button onclick="quickAudit('logix-crm-india.com')" class="text-xs px-2 py-1 rounded bg-amber-900/30 text-amber-300 border border-amber-800 hover:bg-amber-900/60">Logix CRM (Mid)</button>
+          <button onclick="quickAudit('apple-enterprise-vendor.com')" class="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60">Apple (Strong)</button>
         </div>
 
         <!-- Pipeline steps -->
@@ -3977,22 +4019,37 @@ This addendum governs the processing of personal data.
     }
 
     // =========================================================================
+    // ERROR BOUNDARY — wraps async operations to prevent blank screens
+    // =========================================================================
+    async function safeAsync(fn, fallbackFn) {
+      try {
+        return await fn();
+      } catch (err) {
+        console.error('[VendorGuard] Error caught by error boundary:', err);
+        if (fallbackFn) return fallbackFn(err);
+        return null;
+      }
+    }
+
+    // =========================================================================
     // COMPANY LIBRARY
     // =========================================================================
     let companyData = null;
     let currentFilter = 'all';
 
     const FALLBACK_COMPANIES = {
-      total: 10,
+      total: 12,
       categories: {
         strong: [
           { domain: 'google-cloud-vendor.com', label: 'Enterprise cloud vendor — strong security posture (SAFE)', category: 'strong', trust_score: 92, band: 'safe', findings_count: 2, critical_count: 0, high_count: 0 },
           { domain: 'microsoft-enterprise.com', label: 'Enterprise software vendor — strong security (SAFE)', category: 'strong', trust_score: 88, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
+          { domain: 'apple-enterprise-vendor.com', label: 'Enterprise hardware & services vendor — strong security (SAFE)', category: 'strong', trust_score: 94, band: 'safe', findings_count: 2, critical_count: 0, high_count: 0 },
           { domain: 'cleanpay-gateway.com', label: 'Payments vendor with mature security posture (safe baseline)', category: 'strong', trust_score: 85, band: 'safe', findings_count: 3, critical_count: 0, high_count: 0 },
         ],
         mid: [
           { domain: 'paytrust-partner.com', label: 'Payments vendor (deterministic demo target)', category: 'mid', trust_score: 48, band: 'watch', findings_count: 6, critical_count: 1, high_count: 2 },
           { domain: 'healthbuddy-partner.com', label: 'Healthtech partner handling sensitive PII', category: 'mid', trust_score: 44, band: 'watch', findings_count: 5, critical_count: 1, high_count: 2 },
+          { domain: 'tcs-outsource-vendor.com', label: 'IT outsourcing vendor — mixed security posture', category: 'mid', trust_score: 42, band: 'watch', findings_count: 5, critical_count: 0, high_count: 2 },
           { domain: 'databridge-cloud.com', label: 'Cloud storage vendor with cross-border data flows', category: 'mid', trust_score: 38, band: 'watch', findings_count: 6, critical_count: 2, high_count: 1 },
         ],
         breached: [
@@ -4009,14 +4066,28 @@ This addendum governs the processing of personal data.
     async function loadCompanyLibrary() {
       const grid = $('company-library-grid');
       if (!grid) return;
-      grid.innerHTML = '<div class="col-span-full text-center py-8"><div class="animate-pulse text-cyan-400">Loading companies...</div></div>';
-      try {
+      // Skeleton loading cards
+      grid.innerHTML = Array.from({length: 6}, () => `
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <div class="flex items-start justify-between mb-2">
+            <div class="skeleton h-4 w-3/4"></div>
+            <div class="skeleton h-4 w-12"></div>
+          </div>
+          <div class="skeleton h-3 w-1/2 mt-3 mb-4"></div>
+          <div class="flex items-center justify-between">
+            <div class="skeleton h-8 w-12"></div>
+            <div class="skeleton h-6 w-16"></div>
+          </div>
+        </div>
+      `).join('');
+      await safeAsync(async () => {
         const r = await fetch(`${API}/companies`, { signal: AbortSignal.timeout(10000) });
         if (!r.ok) throw new Error('API error');
         companyData = await r.json();
-      } catch {
+      }, () => {
         companyData = FALLBACK_COMPANIES;
-      }
+      });
+      if (!companyData) companyData = FALLBACK_COMPANIES;
       renderCompanyGrid();
     }
 
@@ -4485,7 +4556,7 @@ This addendum governs the processing of personal data.
         const st = sevText[a.severity] || 'text-slate-400';
         const time = a.at ? new Date(a.at).toLocaleTimeString() : '';
         return `
-          <div class="rounded-xl border ${sc} p-4 animate-fadeIn">
+          <div class="rounded-xl border ${sc} p-4 animate-slideIn">
             <div class="flex items-start justify-between mb-2">
               <div class="flex items-center gap-2">
                 <span class="inline-block w-2 h-2 rounded-full ${a.severity === 'critical' ? 'bg-red-500 animate-pulse' : a.severity === 'high' ? 'bg-orange-500' : 'bg-amber-500'}"></span>
