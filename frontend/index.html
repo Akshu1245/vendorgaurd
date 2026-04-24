@@ -2018,6 +2018,7 @@ Cite: ${m.rag_citation || ''}`;
     }
 
     async function refreshPortfolio() {
+      if (demoModeActive) return;
       try {
         const p = await api('/portfolio');
         animateCount($('kpi-vendors'), p.vendors_tracked);
@@ -2145,6 +2146,7 @@ Cite: ${m.rag_citation || ''}`;
     let playbookFilter = '7';
 
     async function refreshPlaybook() {
+      if (demoModeActive) return;
       const vendor = (lastScan && lastScan.vendor) || $('vendor-input').value.trim().toLowerCase();
       if (!vendor) return;
       try {
@@ -2224,6 +2226,7 @@ This addendum governs the processing of personal data.
 
     // v3.1: Benchmark Evidence Ledger — load canned DPAs into the analyzer.
     async function refreshBenchmarks() {
+      if (demoModeActive) return;
       const box = $('contract-benchmark-chips');
       if (!box) return;
       try {
@@ -2251,6 +2254,7 @@ This addendum governs the processing of personal data.
 
     // v3.2: Compliance Diff panel — scan-over-time delta UI.
     async function refreshDiffPanel() {
+      if (demoModeActive) return;
       const vendor = (lastScan && lastScan.vendor) || $('vendor-input').value.trim().toLowerCase();
       const empty = $('diff-empty');
       const card = $('diff-card');
@@ -2411,6 +2415,7 @@ This addendum governs the processing of personal data.
     // Data Flow Map (v3.0)
     // =========================================================================
     async function refreshDataflow() {
+      if (demoModeActive) return;
       try {
         const g = await api('/graph');
         const vendors = (g.nodes || []).filter(n => n.kind === 'vendor');
@@ -3513,6 +3518,7 @@ This addendum governs the processing of personal data.
     // v3.3 — Real-Breach Back-test panel (T3)
     // =========================================================================
     async function refreshBacktestCases() {
+      if (demoModeActive) return;
       const el = $('backtest-cases');
       el.innerHTML = '<div class="text-xs text-slate-500 italic">loading…</div>';
       try {
