@@ -91,6 +91,23 @@ All deployments use the free tier. No credit card required.
 
 ---
 
+## 📸 Screenshots & Live Demo
+
+| Feature | What Judges See |
+|---------|-----------------|
+| **Executive Board** | Portfolio KPIs with trust score ring animation |
+| **OSINT Scan** | 11 findings for `paytrust-partner.com` with severity chips |
+| **DPDP Exposure** | ₹600 Cr penalty exposure across §5, §8(5), §8(6), §8(8) |
+| **Contract Intel** | 16-rule analysis with evidence trace (keyword + offset + confidence) |
+| **Live Defense** | Gateway containment in 43ms with IsolationForest anomaly detection |
+| **Audit ZIP** | One-click download: scan.json + playbook.json + PDFs + CERT-In Form-A |
+| **Ask DPDP** | RAG-powered answers citing gazette page numbers |
+| **Real Breach Back-test** | AIIMS 2022, BigBasket 2020, MobiKwik 2021 reconstructions |
+
+**🎥 Demo Video:** The `out/demo-final.mp4` is a 2m40s narrated walkthrough (Sarvam.ai Indian-English TTS, speaker `ratan`).
+
+---
+
 ## One-liner pitch
 
 > **Every enterprise in India now runs on vendors, and under the DPDP Act any one vendor breach is YOUR ₹250-crore problem. VendorGuard AI is the DPDP-native vendor access control plane that catches it in 43 milliseconds — with evidence, not vibes.**
@@ -741,13 +758,28 @@ This section is a **cheat sheet for the team captain + 2-3 speakers**. Everyone 
 
 ---
 
+## 📊 Project Stats
+
+| Metric | Value |
+|--------|-------|
+| **Lines of Code** | ~8,500 Python + ~2,300 JavaScript |
+| **API Endpoints** | 30+ FastAPI routes |
+| **Test Coverage** | 32 pytest cases, all green |
+| **Data Assets** | 49 RAG passages, 15 DPDP clauses, 4 benchmark DPAs |
+| **Demo Vendors** | 6 pre-configured (works offline) |
+| **ML Models** | IsolationForest (trained on 50 baselines) |
+| **Integration Points** | 8 (Shodan, HIBP, VT, crt.sh, DNS, TLS, nuclei, Twilio) |
+| **Documentation** | 12 markdown files, 1 PRESENTATION.docx |
+
+---
+
 ## Repo layout
 
 ```
 vendorguard-ai/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py                    ← __version__ = "3.2.1"
+│   │   ├── __init__.py                    ← __version__ = "3.4.0"
 │   │   ├── main.py                        ← FastAPI app (30+ endpoints)
 │   │   ├── schemas.py                     ← Pydantic v2 models
 │   │   ├── config.py                      ← env settings
