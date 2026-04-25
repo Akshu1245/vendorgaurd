@@ -1,10 +1,13 @@
-# VendorGuard AI &nbsp;·&nbsp; v3.3.0
+# VendorGuard AI &nbsp;·&nbsp; v3.4.0
 
 > **The Vendor Access Control Plane for DPDP-compliant India.**
+> 
+> 🚀 **Live Demo:** [https://frontend-flame-one-qrbxh3wbyc.vercel.app/](https://frontend-flame-one-qrbxh3wbyc.vercel.app/)  
+> 🔧 **API Endpoint:** [https://vendorguard-api.onrender.com/](https://vendorguard-api.onrender.com/)
 > One-click *Autonomous Onboard* → OSINT → Score → DPDP-map → Contract Intel (accepts PDF DPAs) → Gateway-protect → Stage-day backup video → **Real-breach back-test** against AIIMS 2022, BigBasket 2020, MobiKwik 2021.
 > Every finding grounded in the DPDP Act (§-numbered, gazette-page cited, ₹-penalty mapped) and cross-walked to ISO 27001, SOC 2, NIST CSF 2.0, **SEBI CSCRF**, and **RBI IT Governance Framework** — the full India-first regulatory stack.
 
-### What's new in v3.3.0 (hackathon-final)
+### What's new in v3.4.0 (hackathon-final)
 
 | Feature | Endpoint / UI | Why it wins |
 |---|---|---|
@@ -26,6 +29,40 @@
 ![status](https://img.shields.io/badge/status-hackathon%20ready-success) ![stack](https://img.shields.io/badge/stack-FastAPI%20%2B%20Tailwind-blue) ![ml](https://img.shields.io/badge/ML-IsolationForest-6366f1) ![rules](https://img.shields.io/badge/rules-16%20DPDP%20contract%20rules-f59e0b) ![rag](https://img.shields.io/badge/RAG-49%20passages-f59e0b) ![osint](https://img.shields.io/badge/OSINT-crt.sh%20live-10b981) ![selftest](https://img.shields.io/badge/selftest-4%2F4%20benchmark%20DPAs-10b981) ![tests](https://img.shields.io/badge/pytest-all%20green-10b981) ![frameworks](https://img.shields.io/badge/frameworks-ISO%20%2B%20SOC2%20%2B%20NIST%20%2B%20SEBI%20CSCRF%20%2B%20RBI-6366f1) ![agent](https://img.shields.io/badge/agent-6%20step%20autonomous%20onboard-f59e0b) ![license](https://img.shields.io/badge/license-MIT-green)
 
 Built for **Athernex 2026** (DSCE × BMSCE) by **Team Rashi Innovators**.
+
+---
+
+## 🚀 Try It Now (No Setup Required)
+
+| | Link |
+|---|---|
+| **Live Dashboard** | [https://frontend-flame-one-qrbxh3wbyc.vercel.app/](https://frontend-flame-one-qrbxh3wbyc.vercel.app/) |
+| **API Base URL** | [https://vendorguard-api.onrender.com/](https://vendorguard-api.onrender.com/) |
+| **API Docs** | [https://vendorguard-api.onrender.com/docs](https://vendorguard-api.onrender.com/docs) |
+| **Health Check** | [https://vendorguard-api.onrender.com/health](https://vendorguard-api.onrender.com/health) |
+
+**Demo Mode:** The live deployment runs in `DEMO_MODE=true` — all 6 demo vendors work without API keys. Try scanning `paytrust-partner.com` instantly.
+
+---
+
+## 🚢 Deploy Your Own (Free Tier)
+
+### One-Click Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/r88213584-create/vendorfinal)
+
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/r88213584-create/vendorfinal&root-directory=frontend)
+
+### Manual Deploy
+
+| Platform | Command | Time |
+|---|---|---|
+| **Render** | Connect repo → Blueprint auto-detects `render.yaml` | 3 min |
+| **Fly.io** | `fly launch` (see `fly.toml`) | 5 min |
+| **Railway** | Connect repo → `railway.json` auto-config | 3 min |
+| **Vercel** | `vercel --cwd frontend` | 2 min |
+
+All deployments use the free tier. No credit card required.
 
 ---
 
