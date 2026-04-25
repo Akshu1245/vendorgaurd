@@ -4,6 +4,7 @@
 > 
 > 🚀 **Live Demo:** [https://frontend-flame-one-qrbxh3wbyc.vercel.app/](https://frontend-flame-one-qrbxh3wbyc.vercel.app/)  
 > 🔧 **API Endpoint:** [https://vendorguard-api.onrender.com/](https://vendorguard-api.onrender.com/)
+> walk through video https://youtu.be/NYjfjndCi8E
 > One-click *Autonomous Onboard* → OSINT → Score → DPDP-map → Contract Intel (accepts PDF DPAs) → Gateway-protect → Stage-day backup video → **Real-breach back-test** against AIIMS 2022, BigBasket 2020, MobiKwik 2021.
 > Every finding grounded in the DPDP Act (§-numbered, gazette-page cited, ₹-penalty mapped) and cross-walked to ISO 27001, SOC 2, NIST CSF 2.0, **SEBI CSCRF**, and **RBI IT Governance Framework** — the full India-first regulatory stack.
 
