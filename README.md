@@ -850,3 +850,4 @@ vendorguard-ai/
 **License.** MIT. See [`LICENSE`](./LICENSE). Use freely, fork freely, ship anything.
 
 > **Rules where rules belong. ML where anomalies live. LLM only for polish. Nothing hidden. That's why VendorGuard wins.**
+> walk through video https://youtu.be/NYjfjndCi8E
